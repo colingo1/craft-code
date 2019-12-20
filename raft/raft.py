@@ -1,36 +1,51 @@
+"""
+Raft Code
+
+Code for running on agent in Raft consensus.
+Uses GRPC for communication between agents.
+
+Authors: Colin Goldberg, Timothy Castiglia
+"""
 import sys
 import grpc
 import threading
 from concurrent import futures
 
-
 import raft_pb2
 import raft_pb2_grpc
 
-
 DEBUG = True
-#Stable storage of all servers as defined in the Raft paper.
+# Stable storage of all servers as defined in the Raft paper.
 currentTerm = 0;
 log = [raft_pb2.LogEntry(data = "NULL", term = 0)];
 votedFor = "";
 
-#Volatile state of all servers
+# Volatile state of all servers
 commitIndex = 0;
 lastApplied = 0;
 
-#Volatile state of leaders
+# Volatile state of leaders
 nextIndex = {}
 matchIndex = {}
 
 current_state = "follower"
 
-# TODO Read from instances.txt file for members
-members = ["127.0.0.1:8123","127.0.0.1:8124","127.0.0.1:8125"]
+# Read from instances.txt file for members
+instance_file = open("instances.txt", 'r')
+members = []
+lines = instance_file.readlines()
+for line in lines:
+    members.append(line[0:-1]) 
+instance_file.close()
 
-my_port = int(sys.argv[1])
-this_id = "127.0.0.1:" + str(my_port)
+# Read in own host name
+my_port = 8100 
+host_file = open("host_name.txt", 'r')
+this_id = host_file.readlines()[0]
+host_file.close()
 
-
+debug_print(members)
+debug_print(this_id)
 
 def debug_print(m):
     if DEBUG:
