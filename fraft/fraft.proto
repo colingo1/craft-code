@@ -23,11 +23,18 @@ service fRaft {
   rpc AppendEntries(Entries) returns (Ack) {}
 }
 
+message Proposal{
+  LogEntry entry = 1;
+  uint32 index = 2;
+  uint32 commitIndex = 3;
+  string proposer = 4;
+}
 
 message LogEntry{
   uint32 term = 1;
   string data = 2;
   bool appendedBy = 3;
+  string proposer = 4;
 }
 
 //an argument to the AppendEntries RPC

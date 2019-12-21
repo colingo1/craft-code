@@ -23,10 +23,14 @@ service Raft {
   rpc AppendEntries(Entries) returns (Ack) {}
 }
 
+message Proposal{
+  LogEntry entry = 1;
+}
 
 message LogEntry{
   uint32 term = 1;
   string data = 2;
+  string proposer = 3;
 }
 
 //an argument to the AppendEntries RPC

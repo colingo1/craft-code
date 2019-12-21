@@ -66,10 +66,23 @@ def term_equal(log_index, term):
         return False
     return log[log_index].term == term
 
+def propose(entry): 
+    global commitIndex
+    with grpc.insecure_channel(entry.leaderId) as channel:
+        stub = fraft_pb2_grpc.fRaftStub(channel)
+        debug_print("Sending Proposal to {}".format(entry.leaderId))
+        stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
+                                               proposer = this_id))
+
 class Raft(raft_pb2_grpc.RaftServicer):
+
+    def ReceivePropose(self,request,context):
+        global log
+        log.append(request.entry)
 
     def AppendEntries(self,request,context):
         global log, commitIndex, currentTerm
+
         debug_print("Received AppendEntries from {}".format(request.leaderId))
         if request.term < currentTerm:
             return ack(False)

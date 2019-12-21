@@ -23,6 +23,7 @@ votedFor = "";
 # Volatile state of all servers
 commitIndex = 0;
 lastApplied = 0;
+leaderId = "";
 
 # Volatile state of leaders
 nextIndex = {}
@@ -74,28 +75,63 @@ def term_equal(log_index, term):
         return False
     return log[log_index].term == term
 
-def insert_log(entry, index):
+def insert_log(entry, index, appendedBy):
     global log
     while len(log) <= index:
         log.append(None)
+    entry.appendedBy = appendedBy
     log[index] = entry
+
+def propose(entry, index, server): 
+    global commitIndex
+    if server == "":
+        return
+    with grpc.insecure_channel(server) as channel:
+        stub = fraft_pb2_grpc.fRaftStub(channel)
+        debug_print("Sending Proposal to {} with index {}".format(server,index))
+        stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
+                                               index = index,
+                                               commitIndex = commitIndex,
+                                               proposer = this_id))
 
 class fRaft(fraft_pb2_grpc.fRaftServicer):
 
+    def ReceivePropose(self,request,context):
+        global log, possibleEntries, members, leaderId
+
+        if request.index >= len(log) or log[request.index] == None:
+            insert_log(request.entry, request.index, False)
+
+        if current_state == "leader":
+            # Add empty entries to log and possibleEntries
+            while request.index >= len(possibleEntries):
+                possibleEntries.append([None]*len(members))
+
+            # Add proposer's vote to possibleEntries
+            proposerIndex = members.index(request.proposer)
+            possibleEntries[request.index][proposerIndex] = request.entry
+            nextIndex[request.proposer] = request.commitIndex+1
+        else:
+            propose(log[request.index], request.index, leaderId)
+
     def AppendEntries(self,request,context):
-        global log, commitIndex, currentTerm
+        global log, commitIndex, currentTerm, leaderId
+
         debug_print("Received AppendEntries from {}".format(request.leaderId))
         if request.term < currentTerm:
             return ack(False)
         #if not term_equal(request.prevLogIndex, request.prevLogTerm):
         #    return ack(False)
+        leaderId = request.leaderId
         if request.term > currentTerm:
             currentTerm = request.term
+            # This is a new leader, need to send uncommitted entries
+            for i in range(commitIndex+1, len(log)):
+                propose(log[i], i, request.leaderId)
         
-        #log = log[:request.prevLogIndex+1]
         # Overwrite existing entries
         for entry in request.entries:
-            insert_log(entry, entry.index)
+            insert_log(entry, entry.index, True)
             print("appended entry: {} to log in index {}".format(entry.data, entry.index))
 
         oldCommitIndex = commitIndex
@@ -113,11 +149,13 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
         if request.term > currentTerm:
             currentTerm = request.term
 
-        # Haven't yet committed vote
+        # If haven't voted yet, and at least as up-to-date as self, vote for
         if((votedFor == "" or votedFor == request.candidateId) and 
              (request.lastLogIndex >= commitIndex)):
                 debug_print("Voted for {}".format(request.candidateId))
                 return ack(True)
+
+        # Do not vote for
         return ack(False)
 
 
@@ -157,6 +195,10 @@ def most_frequent(List):
         dict[item] = dict.get(item, 0) + 1
         if dict[item] >= count : 
             count, itm = dict[item], item 
+    # If there is a leader-approved entry, append that
+    for e in List:
+        if e.appendedBy:
+            return e,dict[e]
     return(itm, count) 
 
 def update_everyone(heartbeat):
@@ -169,14 +211,15 @@ def update_everyone(heartbeat):
         # Count votes for each entry
         # Insert entry e with most votes
         e,count = most_frequent(possibleEntries[k])
-        insert_log(e,k)
+        insert_log(e,k,True)
+
+        # Update fastMatchIndex for agents
+        for i in range(0,len(members)):
+            if possibleEntries[k][i] == e:
+                fastMatchIndex[members[i]] = k
 
         # If Fast-track succeeded
         if count >= math.ceil(3.0*len(members)/4.0):
-            # Update fastMatchIndex for agents
-            for i in range(0,len(members)):
-                if possibleEntries[k][i] == e:
-                    fastMatchIndex = k
              
             # Remove e from possibleEntries
             for j in range(k+1, len(possibleEntries)):
@@ -208,7 +251,6 @@ def become_leader():
     nextIndex = {member:len(log) for member in members}
     matchIndex = {member:0 for member in members}
 
-    # TODO Get uncommited entries from all members
     update_everyone(True)
 
 def hold_election():
