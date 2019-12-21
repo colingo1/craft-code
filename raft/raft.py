@@ -44,12 +44,12 @@ host_file = open("host_name.txt", 'r')
 this_id = host_file.readlines()[0]
 host_file.close()
 
-debug_print(members)
-debug_print(this_id)
-
 def debug_print(m):
     if DEBUG:
         print(m)
+
+debug_print(members)
+debug_print(this_id)
 
 def print_log():
     print("Log:")
