@@ -36,7 +36,7 @@ instance_file = open("instances.txt", 'r')
 members = []
 lines = instance_file.readlines()
 for line in lines:
-    members.append(line[0:-1]) 
+    members.append(line[0:-1]+":8100") 
 instance_file.close()
 
 # Read in own host name
@@ -44,10 +44,6 @@ my_port = 8100
 host_file = open("host_name.txt", 'r')
 this_id = host_file.readlines()[0]
 host_file.close()
-
-cred_file = os.popen("ls /home/ubuntu").read()[0:-1]
-with open("/home/ubuntu/"+cred_file, 'rb') as f:
-    creds = grpc.ssl_channel_credentials(f.read())
 
 def debug_print(m):
     if DEBUG:
@@ -73,7 +69,7 @@ def term_equal(log_index, term):
 
 def propose(entry): 
     global commitIndex
-    with grpc.secure_channel(entry.leaderId, creds) as channel:
+    with grpc.insecure_channel(entry.leaderId) as channel:
         stub = fraft_pb2_grpc.fRaftStub(channel)
         debug_print("Sending Proposal to {}".format(entry.leaderId))
         stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
@@ -127,7 +123,7 @@ class Raft(raft_pb2_grpc.RaftServicer):
 
 def send_append_entries(server,heartbeat):
     global nextIndex, matchIndex, commitIndex, currentTerm
-    with grpc.secure_channel(server, creds) as channel:
+    with grpc.insecure_channel(server) as channel:
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
             prev_index = nextIndex[server]-1
@@ -181,7 +177,7 @@ def hold_election():
     vote_count = 1
     for server in members:
         if server != this_id:
-            with grpc.secure_channel(server, creds) as channel:
+            with grpc.insecure_channel(server) as channel:
                 stub = raft_pb2_grpc.RaftStub(channel)
                 try:
                     response = stub.RequestVote(raft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = len(log)-1, lastLogTerm = log[-1].term))
@@ -205,7 +201,7 @@ def hold_election():
 def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     raft_pb2_grpc.add_RaftServicer_to_server(Raft(), server)
-    server.add_secure_port('[::]:{}'.format(my_port), creds)
+    server.add_insecure_port('[::]:{}'.format(my_port))
     server.start()
     server.wait_for_termination()
 
