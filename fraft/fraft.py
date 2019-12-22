@@ -282,8 +282,20 @@ def hold_election():
         debug_print("lost election")
         current_state = "follower"
 
-
-
+def propose_all(entry):
+    global members, log, commitIndex, this_id
+    index = len(log)
+    for server in members:
+        with grpc.insecure_channel(server) as channel:
+            stub = fraft_pb2_grpc.fRaftStub(channel)
+            try:
+                stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
+                                               index = index,
+                                               commitIndex = commitIndex,
+                                               proposer = this_id))
+            except grpc.RpcError as e:
+                debug_print(e)
+                debug_print("couldn't connect to {}".format(server))
 
 def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -319,7 +331,7 @@ def main():
     server_thread.start()
 
     while True:
-        global current_state
+        global current_state, log
         # TODO make automatic 
         command = input()
         if command == "status":
@@ -329,12 +341,10 @@ def main():
         # TODO measure turnaround time on propose
         # TODO save results in /home/ubuntu/{host_name}.txt
         if command[:7] == "propose":
-            if current_state == "leader":
-                log.append(fraft_pb2.LogEntry(data = command[8:], 
-                                              term = currentTerm,
-                                              appendedBy = True))
-            else:
-                print("Not leader, can't propose")
+            entry = fraft_pb2.LogEntry(data = command[8:], 
+                                          term = currentTerm,
+                                          appendedBy = True))
+            propose_all(entry)
         if command == "update":
             if current_state == "leader":
                 update_everyone(False)
