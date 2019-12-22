@@ -86,6 +86,7 @@ class Raft(raft_pb2_grpc.RaftServicer):
     def ReceivePropose(self,request,context):
         global log
         log.append(request.entry)
+        return ack(True)
 
     def AppendEntries(self,request,context):
         global log, commitIndex, currentTerm, leaderId
