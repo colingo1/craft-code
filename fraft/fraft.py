@@ -80,21 +80,21 @@ def insert_log(entry, index, appendedBy):
     entry.appendedBy = appendedBy
     log[index] = entry
 
-def propose(entry, index, server): 
-    global commitIndex
-    if server == "":
+def propose(entry, index, p_server): 
+    global commitIndex, this_id
+    if p_server == "":
         return
-    with grpc.insecure_channel(server) as channel:
+    with grpc.insecure_channel(p_server) as p_channel:
         try:
-            stub = fraft_pb2_grpc.fRaftStub(channel)
-            debug_print("Sending Proposal to {} with index {}".format(server,index))
-            stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
+            p_stub = fraft_pb2_grpc.fRaftStub(p_channel)
+            debug_print("Sending Proposal to {} with index {}".format(p_server,index))
+            p_stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
                                                    index = index,
                                                    commitIndex = commitIndex,
                                                    proposer = this_id))
         except grpc.RpcError as e:
             debug_print(e)
-            debug_print("couldn't connect to {}".format(server))
+            debug_print("couldn't connect to {}".format(p_server))
 
 class fRaft(fraft_pb2_grpc.fRaftServicer):
 
