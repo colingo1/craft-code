@@ -99,7 +99,7 @@ def propose(entry, index, p_server):
 class fRaft(fraft_pb2_grpc.fRaftServicer):
 
     def ReceivePropose(self,request,context):
-        global log, possibleEntries, members, leaderId
+        global log, possibleEntries, members, leaderId, current_state
 
         debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
         if request.index >= len(log) or log[request.index] == None:
@@ -197,18 +197,25 @@ def send_append_entries(server,heartbeat):
     return matchIndex[server]
 
 def most_frequent(List): 
-    List = [x is not None for x in List]
-    dict = {} 
-    count, itm = 0, '' 
-    for item in reversed(List): 
-        dict[item] = dict.get(item, 0) + 1
-        if dict[item] >= count : 
-            count, itm = dict[item], item 
-    # If there is a leader-approved entry, append that
-    for e in List:
-        if e.appendedBy:
-            return e,dict[e]
-    return(itm, count) 
+    List = [x for x in List if x is not None]
+    counter = 0
+    num = List[0] 
+    for i in List: 
+        curr_frequency = 0
+        # Count number of votes for this entry
+        for j in List:
+            if i.data == j.data:
+                curr_frequency += 1 
+
+        # If there is a leader-approved entry, append that
+        if i.appendedBy:
+            return i,curr_frequency
+
+        # Update max frequency
+        if(curr_frequency > counter): 
+            counter = curr_frequency 
+            num = i 
+    return(num, counter) 
 
 def update_everyone(heartbeat):
     global commitIndex, possibleEntries
