@@ -343,7 +343,7 @@ def main():
         if command[:7] == "propose":
             entry = fraft_pb2.LogEntry(data = command[8:], 
                                           term = currentTerm,
-                                          appendedBy = True))
+                                          appendedBy = True)
             propose_all(entry)
         if command == "update":
             if current_state == "leader":

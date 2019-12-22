@@ -21,6 +21,8 @@ service fRaft {
   rpc RequestVote(VoteRequest) returns (Ack) {}
 
   rpc AppendEntries(Entries) returns (Ack) {}
+
+  rpc ReceivePropose(Proposal) returns (Ack) {}
 }
 
 message Proposal{
