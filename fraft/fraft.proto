@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-// Raft gRPC implementation
+// fRaft gRPC implementation
 service fRaft {
   // Takes an ID (use shared IDKey message type) and returns k nodes with
   // distance closest to ID requested
