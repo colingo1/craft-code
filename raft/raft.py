@@ -76,9 +76,9 @@ def propose(entry, server):
     if server == "":
         return
     with grpc.insecure_channel(server) as channel:
-        stub = fraft_pb2_grpc.fRaftStub(channel)
+        stub = raft_pb2_grpc.fRaftStub(channel)
         debug_print("Sending Proposal to {}".format(server))
-        stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
+        stub.ReceivePropose(raft_pb2.Proposal(entry = entry, 
                                                proposer = this_id))
 
 class Raft(raft_pb2_grpc.RaftServicer):
@@ -286,7 +286,7 @@ def main():
             propose_time = False
             # TODO measure turnaround time on propose
             # TODO save results in /home/ubuntu/{host_name}.txt
-            entry = fraft_pb2.LogEntry(data = this_id+str(counter), 
+            entry = raft_pb2.LogEntry(data = this_id+str(counter), 
                                           term = currentTerm,
                                           appendedBy = True)
             propose(entry, leaderId)
