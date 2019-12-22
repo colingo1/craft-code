@@ -46,7 +46,7 @@ instance_file.close()
 # Read in own host name
 my_port = 8100 
 host_file = open("host_name.txt", 'r')
-this_id = host_file.readlines()[0]
+this_id = host_file.readlines()[0][0:-1]+":8100"
 host_file.close()
 
 def debug_print(m):
