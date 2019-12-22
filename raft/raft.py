@@ -76,7 +76,7 @@ def propose(entry, server):
     if server == "":
         return
     with grpc.insecure_channel(server) as channel:
-        stub = raft_pb2_grpc.fRaftStub(channel)
+        stub = raft_pb2_grpc.RaftStub(channel)
         debug_print("Sending Proposal to {}".format(server))
         stub.ReceivePropose(raft_pb2.Proposal(entry = entry, 
                                                proposer = this_id))
