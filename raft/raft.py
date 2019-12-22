@@ -287,8 +287,7 @@ def main():
             # TODO measure turnaround time on propose
             # TODO save results in /home/ubuntu/{host_name}.txt
             entry = raft_pb2.LogEntry(data = this_id+str(counter), 
-                                          term = currentTerm,
-                                          appendedBy = True)
+                                          term = currentTerm)
             propose(entry, leaderId)
             randTime = random.randint(50,100)
             proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
