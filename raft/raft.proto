@@ -27,6 +27,7 @@ service Raft {
 
 message Proposal{
   LogEntry entry = 1;
+  string proposer = 2;
 }
 
 message LogEntry{

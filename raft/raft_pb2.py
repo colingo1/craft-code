@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\nraft.proto\"$\n\x08Proposal\x12\x18\n\x05\x65ntry\x18\x01 \x01(\x0b\x32\t.LogEntry\"8\n\x08LogEntry\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t\x12\x10\n\x08proposer\x18\x03 \x01(\t\"\x86\x01\n\x07\x45ntries\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x10\n\x08leaderId\x18\x02 \x01(\t\x12\x14\n\x0cprevLogIndex\x18\x03 \x01(\r\x12\x13\n\x0bprevLogTerm\x18\x04 \x01(\r\x12\x1a\n\x07\x65ntries\x18\x05 \x03(\x0b\x32\t.LogEntry\x12\x14\n\x0cleaderCommit\x18\x06 \x01(\r\"$\n\x03\x41\x63k\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x0f\n\x07success\x18\x02 \x01(\x08\"[\n\x0bVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\t\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\r\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\r2s\n\x04Raft\x12#\n\x0bRequestVote\x12\x0c.VoteRequest\x1a\x04.Ack\"\x00\x12!\n\rAppendEntries\x12\x08.Entries\x1a\x04.Ack\"\x00\x12#\n\x0eReceivePropose\x12\t.Proposal\x1a\x04.Ack\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\nraft.proto\"6\n\x08Proposal\x12\x18\n\x05\x65ntry\x18\x01 \x01(\x0b\x32\t.LogEntry\x12\x10\n\x08proposer\x18\x02 \x01(\t\"8\n\x08LogEntry\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t\x12\x10\n\x08proposer\x18\x03 \x01(\t\"\x86\x01\n\x07\x45ntries\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x10\n\x08leaderId\x18\x02 \x01(\t\x12\x14\n\x0cprevLogIndex\x18\x03 \x01(\r\x12\x13\n\x0bprevLogTerm\x18\x04 \x01(\r\x12\x1a\n\x07\x65ntries\x18\x05 \x03(\x0b\x32\t.LogEntry\x12\x14\n\x0cleaderCommit\x18\x06 \x01(\r\"$\n\x03\x41\x63k\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x0f\n\x07success\x18\x02 \x01(\x08\"[\n\x0bVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\t\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\r\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\r2s\n\x04Raft\x12#\n\x0bRequestVote\x12\x0c.VoteRequest\x1a\x04.Ack\"\x00\x12!\n\rAppendEntries\x12\x08.Entries\x1a\x04.Ack\"\x00\x12#\n\x0eReceivePropose\x12\t.Proposal\x1a\x04.Ack\"\x00\x62\x06proto3')
 )
 
 
@@ -40,6 +40,13 @@ _PROPOSAL = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='proposer', full_name='Proposal.proposer', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -53,7 +60,7 @@ _PROPOSAL = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=14,
-  serialized_end=50,
+  serialized_end=68,
 )
 
 
@@ -97,8 +104,8 @@ _LOGENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=52,
-  serialized_end=108,
+  serialized_start=70,
+  serialized_end=126,
 )
 
 
@@ -163,8 +170,8 @@ _ENTRIES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=111,
-  serialized_end=245,
+  serialized_start=129,
+  serialized_end=263,
 )
 
 
@@ -201,8 +208,8 @@ _ACK = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=247,
-  serialized_end=283,
+  serialized_start=265,
+  serialized_end=301,
 )
 
 
@@ -253,8 +260,8 @@ _VOTEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=285,
-  serialized_end=376,
+  serialized_start=303,
+  serialized_end=394,
 )
 
 _PROPOSAL.fields_by_name['entry'].message_type = _LOGENTRY
@@ -309,8 +316,8 @@ _RAFT = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=378,
-  serialized_end=493,
+  serialized_start=396,
+  serialized_end=511,
   methods=[
   _descriptor.MethodDescriptor(
     name='RequestVote',
