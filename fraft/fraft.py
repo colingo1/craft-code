@@ -48,7 +48,7 @@ possibleEntries = [[None]*len(members)]
 # Read in own host name
 my_port = 8100 
 host_file = open("host_name.txt", 'r')
-this_id = host_file.readlines()[0]
+this_id = host_file.readlines()[0][0:-1]+":8100"
 host_file.close()
 
 def debug_print(m):
@@ -85,18 +85,23 @@ def propose(entry, index, server):
     if server == "":
         return
     with grpc.insecure_channel(server) as channel:
-        stub = fraft_pb2_grpc.fRaftStub(channel)
-        debug_print("Sending Proposal to {} with index {}".format(server,index))
-        stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
-                                               index = index,
-                                               commitIndex = commitIndex,
-                                               proposer = this_id))
+        try:
+            stub = fraft_pb2_grpc.fRaftStub(channel)
+            debug_print("Sending Proposal to {} with index {}".format(server,index))
+            stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
+                                                   index = index,
+                                                   commitIndex = commitIndex,
+                                                   proposer = this_id))
+        except grpc.RpcError as e:
+            debug_print(e)
+            debug_print("couldn't connect to {}".format(server))
 
 class fRaft(fraft_pb2_grpc.fRaftServicer):
 
     def ReceivePropose(self,request,context):
         global log, possibleEntries, members, leaderId
 
+        debug_print("Received Proposal from {} for index {}".format(request.proposer,index))
         if request.index >= len(log) or log[request.index] == None:
             insert_log(request.entry, request.index, False)
 
@@ -111,6 +116,7 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
             nextIndex[request.proposer] = request.commitIndex+1
         else:
             propose(log[request.index], request.index, leaderId)
+        return ack(True)
 
     def AppendEntries(self,request,context):
         global log, commitIndex, currentTerm, leaderId
