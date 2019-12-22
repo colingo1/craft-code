@@ -23,8 +23,6 @@ service fRaft {
   rpc AppendEntries(Entries) returns (Ack) {}
 
   rpc ReceivePropose(Proposal) returns (Ack) {}
-
-  rpc ReceivePropose2(Proposal) returns (Ack) {}
 }
 
 message Proposal{
