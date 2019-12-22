@@ -30,13 +30,6 @@ nextIndex = {}
 matchIndex = {}
 fastMatchIndex = {}
 
-# Possible Entries structure
-# List of lists, length of log
-# Inner lists length of number of members
-possibleEntries = [[fraft_pb2.LogEntry(data = "NULL", 
-                    term = 0, 
-                    appendedBy = True)]*len(members)]
-
 current_state = "follower"
 
 # Read from instances.txt file for members
@@ -44,8 +37,13 @@ instance_file = open("instances.txt", 'r')
 members = []
 lines = instance_file.readlines()
 for line in lines:
-    members.append(line[0:-1]) 
+    members.append(line[0:-1]+":8100") 
 instance_file.close()
+
+# Possible Entries structure
+# List of lists, length of log
+# Inner lists length of number of members
+possibleEntries = [[None]*len(members)]
 
 # Read in own host name
 my_port = 8100 
@@ -53,12 +51,12 @@ host_file = open("host_name.txt", 'r')
 this_id = host_file.readlines()[0]
 host_file.close()
 
-debug_print(members)
-debug_print(this_id)
-
 def debug_print(m):
     if DEBUG:
         print(m)
+
+debug_print(members)
+debug_print(this_id)
 
 def print_log():
     print("Log:")
@@ -125,14 +123,18 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
         leaderId = request.leaderId
         if request.term > currentTerm:
             currentTerm = request.term
+            debug_print("Sending uncommitted entries to {}".format(request.leaderId))
             # This is a new leader, need to send uncommitted entries
             for i in range(commitIndex+1, len(log)):
                 propose(log[i], i, request.leaderId)
         
         # Overwrite existing entries
+        i = 1
         for entry in request.entries:
-            insert_log(entry, entry.index, True)
-            print("appended entry: {} to log in index {}".format(entry.data, entry.index))
+            index = request.prevLogIndex+i
+            insert_log(entry, index, True)
+            print("appended entry: {} to log in index {}".format(entry.data, index))
+            i += 1
 
         oldCommitIndex = commitIndex
         commitIndex = min(request.leaderCommit, len(log) -1)
@@ -184,6 +186,7 @@ def send_append_entries(server,heartbeat):
                 nextIndex[server] = len(log)
                 matchIndex[server] = len(log)-1
         except grpc.RpcError as e:
+            debug_print(e)
             debug_print("couldn't connect to {}".format(server))
     return matchIndex[server]
 
@@ -206,8 +209,8 @@ def update_everyone(heartbeat):
 
     # Fast-track commit check
     k = commitIndex+1
-    while(sum(x is not None for x in possibleEntries[k]) 
-            > len(members)/2):
+    while(len(possibleEntries) > k and
+          sum(x is not None for x in possibleEntries[k]) > len(members)/2):
         # Count votes for each entry
         # Insert entry e with most votes
         e,count = most_frequent(possibleEntries[k])
@@ -270,6 +273,7 @@ def hold_election():
                     if response.term > currentTerm:
                         currentTerm = response.term
                 except grpc.RpcError as e:
+                    debug_print(e)
                     debug_print("couldn't connect to {}".format(server))
     if vote_count >= len(members)/2:
         current_state = "leader"
@@ -326,7 +330,9 @@ def main():
         # TODO save results in /home/ubuntu/{host_name}.txt
         if command[:7] == "propose":
             if current_state == "leader":
-                log.append(fraft_pb2.LogEntry(data = command[8:], term = currentTerm))
+                log.append(fraft_pb2.LogEntry(data = command[8:], 
+                                              term = currentTerm,
+                                              appendedBy = True))
             else:
                 print("Not leader, can't propose")
         if command == "update":
