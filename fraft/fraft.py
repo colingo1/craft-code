@@ -132,6 +132,7 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
         election_timer.cancel()
         randTime = random.randInt(150,300)
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
+        election_timer.start()
         if request.term > currentTerm:
             currentTerm = request.term
             debug_print("Sending uncommitted entries to {}".format(request.leaderId))
@@ -268,6 +269,7 @@ def update_everyone(heartbeat):
 
     global heartbeat_timer
     heartbeat_timer = threading.Timer(50/100.0, heartbeat_timeout) 
+    heartbeat_timer.start()
 
 
 def become_leader():
@@ -306,6 +308,7 @@ def hold_election():
         global election_timer
         randTime = random.randInt(150,300)
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
+        election_timer.start()
 
 def propose_all(entry):
     global members, log, commitIndex, this_id
@@ -339,6 +342,7 @@ def election_timeout():
     debug_print("Election timeout")
     current_state = "candidate"
 election_timer = threading.Timer(150/100.0, election_timeout) 
+election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
 update = False
@@ -354,7 +358,8 @@ def propose_timeout():
     global update
     debug_print("Proposal timeout")
     update = True
-proposal_timer = threading.Timer(5, propose_timeout) 
+proposal_timer = threading.Timer(5, propose_timeout)
+proposal_timer.start()
 
 # Run experiment for set amount of time
 running = True
@@ -362,7 +367,8 @@ def stop_running():
     global running
     debug_print("Running timeout")
     running = False
-run = threading.Timer(40, stop_running) 
+run = threading.Timer(40, stop_running)
+run.start()
 
 """
 Main loop
@@ -390,6 +396,7 @@ def main():
             propose_all(entry)
             randTime = random.randInt(50,100)
             proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
+            proposal_timer.start()
         if current_state == "candidate":
             hold_election()
         counter += 1
