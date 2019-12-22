@@ -96,12 +96,28 @@ def propose(entry, index, server):
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
 
+def propose2(entry, index, server): 
+    global commitIndex
+    if server == "":
+        return
+    with grpc.insecure_channel(server) as channel:
+        try:
+            stub = fraft_pb2_grpc.fRaftStub(channel)
+            debug_print("Sending Proposal2 to {} with index {}".format(server,index))
+            stub.ReceivePropose2(fraft_pb2.Proposal(entry = entry, 
+                                                   index = index,
+                                                   commitIndex = commitIndex,
+                                                   proposer = this_id))
+        except grpc.RpcError as e:
+            debug_print(e)
+            debug_print("couldn't connect to {}".format(server))
+
 class fRaft(fraft_pb2_grpc.fRaftServicer):
 
     def ReceivePropose(self,request,context):
         global log, possibleEntries, members, leaderId
 
-        debug_print("Received Proposal from {} for index {}".format(request.proposer,index))
+        debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
         if request.index >= len(log) or log[request.index] == None:
             insert_log(request.entry, request.index, False)
 
@@ -116,6 +132,26 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
             nextIndex[request.proposer] = request.commitIndex+1
         else:
             propose(log[request.index], request.index, leaderId)
+        return ack(True)
+
+    def ReceivePropose2(self,request,context):
+        global log, possibleEntries, members, leaderId
+
+        debug_print("Received Proposal2 from {} for index {}".format(request.proposer,request.index))
+        if request.index >= len(log) or log[request.index] == None:
+            insert_log(request.entry, request.index, False)
+
+        if current_state == "leader":
+            # Add empty entries to log and possibleEntries
+            while request.index >= len(possibleEntries):
+                possibleEntries.append([None]*len(members))
+
+            # Add proposer's vote to possibleEntries
+            proposerIndex = members.index(request.proposer)
+            possibleEntries[request.index][proposerIndex] = request.entry
+            nextIndex[request.proposer] = request.commitIndex+1
+        else:
+            propose2(log[request.index], request.index, leaderId)
         return ack(True)
 
     def AppendEntries(self,request,context):
