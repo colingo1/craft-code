@@ -11,6 +11,8 @@ import grpc
 import threading
 from concurrent import futures
 import math
+import time
+import random
 
 import fraft_pb2
 import fraft_pb2_grpc
@@ -130,7 +132,7 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
         #    return ack(False)
         leaderId = request.leaderId
         election_timer.cancel()
-        randTime = random.randInt(150,300)
+        randTime = random.randint(150,300)
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
         election_timer.start()
         if request.term > currentTerm:
@@ -306,7 +308,7 @@ def hold_election():
         debug_print("lost election")
         current_state = "follower"
         global election_timer
-        randTime = random.randInt(150,300)
+        randTime = random.randint(150,300)
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
         election_timer.start()
 
@@ -353,11 +355,11 @@ def heartbeat_timeout():
 heartbeat_timer = None 
 
 # Used by all to determine if we want to propose a new entry 
-propose = False
+propose_time = False
 def propose_timeout():
-    global update
+    global propose_time
     debug_print("Proposal timeout")
-    update = True
+    propose_time = True
 proposal_timer = threading.Timer(5, propose_timeout)
 proposal_timer.start()
 
@@ -375,8 +377,8 @@ Main loop
 """
 
 def main():
-    global update, propose, election_timer, heartbeat_timer, proposal_timer
-    global current_state, running
+    global update, propose_time, election_timer, heartbeat_timer, proposal_timer
+    global running
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
@@ -386,15 +388,15 @@ def main():
         if current_state == "leader" and update:
             update = False
             update_everyone(False)
-        if propose:
-            propose = False
+        if propose_time:
+            propose_time = False
             # TODO measure turnaround time on propose
             # TODO save results in /home/ubuntu/{host_name}.txt
             entry = fraft_pb2.LogEntry(data = this_id+str(counter), 
                                           term = currentTerm,
                                           appendedBy = True)
             propose_all(entry)
-            randTime = random.randInt(50,100)
+            randTime = random.randint(50,100)
             proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
             proposal_timer.start()
         if current_state == "candidate":
