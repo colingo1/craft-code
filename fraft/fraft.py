@@ -7,6 +7,7 @@ Uses GRPC for communication between agents.
 Authors: Colin Goldberg, Timothy Castiglia
 """
 import sys
+import os
 import grpc
 import threading
 from concurrent import futures
@@ -333,6 +334,7 @@ def start_grpc_server():
     server.add_insecure_port('[::]:{}'.format(my_port))
     server.start()
     server.wait_for_termination()
+
 
 """
 Timer stop functions

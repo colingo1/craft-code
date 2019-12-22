@@ -11,6 +11,9 @@ import os
 import grpc
 import threading
 from concurrent import futures
+import math
+import time
+import random
 
 import raft_pb2
 import raft_pb2_grpc
@@ -24,6 +27,7 @@ votedFor = "";
 # Volatile state of all servers
 commitIndex = 0;
 lastApplied = 0;
+leaderId = "";
 
 # Volatile state of leaders
 nextIndex = {}
@@ -67,11 +71,13 @@ def term_equal(log_index, term):
         return False
     return log[log_index].term == term
 
-def propose(entry): 
+def propose(entry, server): 
     global commitIndex
-    with grpc.insecure_channel(entry.leaderId) as channel:
+    if server == "":
+        return
+    with grpc.insecure_channel(server) as channel:
         stub = fraft_pb2_grpc.fRaftStub(channel)
-        debug_print("Sending Proposal to {}".format(entry.leaderId))
+        debug_print("Sending Proposal to {}".format(server))
         stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
                                                proposer = this_id))
 
@@ -82,13 +88,19 @@ class Raft(raft_pb2_grpc.RaftServicer):
         log.append(request.entry)
 
     def AppendEntries(self,request,context):
-        global log, commitIndex, currentTerm
+        global log, commitIndex, currentTerm, leaderId
+        global election_timer
 
         debug_print("Received AppendEntries from {}".format(request.leaderId))
         if request.term < currentTerm:
             return ack(False)
         if not term_equal(request.prevLogIndex, request.prevLogTerm):
             return ack(False)
+        leaderId = request.leaderId
+        election_timer.cancel()
+        randTime = random.randint(150,300)
+        election_timer = threading.Timer(randTime/100.0, election_timeout) 
+        election_timer.start()
         if request.term > currentTerm:
             currentTerm = request.term
         
@@ -162,9 +174,15 @@ def update_everyone(heartbeat):
             new_commit_index = i
     commitIndex = new_commit_index
 
+    global heartbeat_timer
+    heartbeat_timer = threading.Timer(50/100.0, heartbeat_timeout) 
+    heartbeat_timer.start()
+
 
 def become_leader():
-    global nextIndex, matchIndex
+    global nextIndex, matchIndex, election_timer
+    election_timer.cancel()
+
     nextIndex = {member:len(log) for member in members}
     matchIndex = {member:0 for member in members}
 
@@ -194,6 +212,10 @@ def hold_election():
     else:
         debug_print("lost election")
         current_state = "follower"
+        global election_timer
+        randTime = random.randint(150,300)
+        election_timer = threading.Timer(randTime/100.0, election_timeout) 
+        election_timer.start()
 
 
 
@@ -206,54 +228,105 @@ def start_grpc_server():
     server.wait_for_termination()
 
 
-#an original plan for an automatic loop
-# while(True):
-#     if(current_state == "leader"):
-#         global nextIndex, matchIndex
-#         nextIndex = {member:len(log) for member in members}
-#         matchIndex = {member:0 for member in members}
+"""
+Timer stop functions
+"""
 
-#         for server in members:
-#             send_append_entries(server,True)
-            
+# Used in followers to decide if leader has failed 
+def election_timeout():
+    global current_state
+    debug_print("Election timeout")
+    current_state = "candidate"
+election_timer = threading.Timer(150/100.0, election_timeout) 
+election_timer.start()
 
-#     if(current_state == "candidate"):
-#         global currentTerm,votedFor
-#         currentTerm += 1
-#         for server in 
+# Used by leader to determine if it is time to send out heartbeat
+update = False
+def heartbeat_timeout():
+    global update
+    debug_print("Heartbeat timeout")
+    update = True
+heartbeat_timer = None 
 
+# Used by all to determine if we want to propose a new entry 
+propose_time = False
+def propose_timeout():
+    global propose_time
+    debug_print("Proposal timeout")
+    propose_time = True
+proposal_timer = threading.Timer(5, propose_timeout)
+proposal_timer.start()
 
-#     if(current_state == "follower"):
+# Run experiment for set amount of time
+running = True
+def stop_running():
+    global running
+    debug_print("Running timeout")
+    running = False
+run = threading.Timer(40, stop_running)
+run.start()
 
-
+"""
+Main loop
+"""
 
 def main():
+    global update, propose_time, election_timer, heartbeat_timer, proposal_timer
+    global running, leaderId
+
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
+    counter = 0
+    while running:
+        global current_state, log
+        if current_state == "leader" and update:
+            update = False
+            update_everyone(False)
+        if propose_time:
+            propose_time = False
+            # TODO measure turnaround time on propose
+            # TODO save results in /home/ubuntu/{host_name}.txt
+            entry = fraft_pb2.LogEntry(data = this_id+str(counter), 
+                                          term = currentTerm,
+                                          appendedBy = True)
+            propose(entry, leaderId)
+            randTime = random.randint(50,100)
+            proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
+            proposal_timer.start()
+        if current_state == "candidate":
+            hold_election()
+        counter += 1
+        time.sleep(5/100.0)
 
-    while True:
-        global current_state
-        # TODO make automatic 
-        command = input()
-        if command == "status":
-            print("current state of {}: {}".format(this_id,current_state))
-            print_log()
-            print("Current commitIndex: {}".format(commitIndex))
-        # TODO measure turnaround time on propose
-        # TODO save results in /home/ubuntu/{host_name}.txt
-        if command[:7] == "propose":
-            if current_state == "leader":
-                log.append(raft_pb2.LogEntry(data = command[8:], term = currentTerm))
-            else:
-                print("Not leader, can't propose")
-        if command == "update":
-            if current_state == "leader":
-                update_everyone(False)
-        # TODO randomized timeout for election if no heartbeat
-        if command == "elect":
-            if current_state == "follower":
-                current_state = "candidate"
-                hold_election()
+
+
+#def main():
+#    server_thread = threading.Thread(target=start_grpc_server,daemon=True)
+#    server_thread.start()
+#
+#    while True:
+#        global current_state
+#        # TODO make automatic 
+#        command = input()
+#        if command == "status":
+#            print("current state of {}: {}".format(this_id,current_state))
+#            print_log()
+#            print("Current commitIndex: {}".format(commitIndex))
+#        # TODO measure turnaround time on propose
+#        # TODO save results in /home/ubuntu/{host_name}.txt
+#        if command[:7] == "propose":
+#            if current_state == "leader":
+#                log.append(raft_pb2.LogEntry(data = command[8:], term = currentTerm))
+#            else:
+#                print("Not leader, can't propose")
+#        if command == "update":
+#            if current_state == "leader":
+#                update_everyone(False)
+#        # TODO randomized timeout for election if no heartbeat
+#        if command == "elect":
+#            if current_state == "follower":
+#                current_state = "candidate"
+#                hold_election()
 
 
 if __name__ == '__main__':
