@@ -336,6 +336,7 @@ Timer stop functions
 # Used in followers to decide if leader has failed 
 def election_timeout():
     global current_state
+    debug_print("Election timeout")
     current_state = "candidate"
 election_timer = threading.Timer(150/100.0, election_timeout) 
 
@@ -343,6 +344,7 @@ election_timer = threading.Timer(150/100.0, election_timeout)
 update = False
 def heartbeat_timeout():
     global update
+    debug_print("Heartbeat timeout")
     update = True
 heartbeat_timer = None 
 
@@ -350,6 +352,7 @@ heartbeat_timer = None
 propose = False
 def propose_timeout():
     global update
+    debug_print("Proposal timeout")
     update = True
 proposal_timer = threading.Timer(5, propose_timeout) 
 
@@ -357,6 +360,7 @@ proposal_timer = threading.Timer(5, propose_timeout)
 running = True
 def stop_running():
     global running
+    debug_print("Running timeout")
     running = False
 run = threading.Timer(40, stop_running) 
 
