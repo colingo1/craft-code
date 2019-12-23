@@ -136,12 +136,13 @@ class Raft(raft_pb2_grpc.RaftServicer):
         return ack(False)
 
     def Notified(self,request,context):
-        global start_times
+        global start_times, propose_time
         t = start_times[request.entry.data]
         elapsed_time = time.time() - t
         f=open("/home/ubuntu/"+this_id+".txt", "a+")
         f.write(str(elapsed_time)+"\n")
         f.close()
+        propose_time = True
         return ack(True)
 
 def send_append_entries(server,heartbeat):
@@ -318,9 +319,10 @@ def main(args):
                                           proposer = this_id)
             start_times[str(counter)] = time.time()
             propose(entry, leaderId)
-            randTime = random.randint(50,100)
-            proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
-            proposal_timer.start()
+            if args[1] == "propose":
+                randTime = random.randint(50,100)
+                proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
+                proposal_timer.start()
         if current_state == "candidate":
             hold_election()
         counter += 1
