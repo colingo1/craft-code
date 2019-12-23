@@ -49,6 +49,8 @@ host_file = open("host_name.txt", 'r')
 this_id = host_file.readlines()[0][0:-1]+":8100"
 host_file.close()
 
+os.system("touch /home/ubuntu/"+this_id+".txt")
+
 def debug_print(m):
     if DEBUG:
         print(m)
@@ -133,6 +135,17 @@ class Raft(raft_pb2_grpc.RaftServicer):
                 return ack(True)
         return ack(False)
 
+    def Notified(self,request,context):
+        global start_times
+        for t in start_times:
+            if t[1] == request.entry.data:
+                elapsed_time = time.time() - t[0]
+                f=open("/home/ubuntu/"+this_id+".txt", "a+")
+                f.write(str(elapsed_time)+"\n")
+                f.close()
+                return ack(True)
+        return ack(False)
+
 
 def send_append_entries(server,heartbeat):
     global nextIndex, matchIndex, commitIndex, currentTerm
@@ -163,6 +176,19 @@ def send_append_entries(server,heartbeat):
     return matchIndex[server]
 
 
+def notify(server, entry):
+    if server == "":
+        return
+    with grpc.insecure_channel(server) as channel:
+        try:
+            stub = raft_pb2_grpc.RaftStub(channel)
+            debug_print("Notifying {}".format(server))
+            stub.Notified(raft_pb2.Entry(entry = entry))
+        except grpc.RpcError as e:
+            debug_print(e)
+            debug_print("couldn't connect to {}".format(p_server))
+
+
 def update_everyone(heartbeat):
     global commitIndex
     for server in members:
@@ -173,6 +199,8 @@ def update_everyone(heartbeat):
         if len(greater_index) > len(members)/2:
             debug_print("committing to {}".format(i))
             new_commit_index = i
+            # Notify proposer
+            notify(log[i].proposer, log[i])
     commitIndex = new_commit_index
 
     global heartbeat_timer
@@ -267,13 +295,16 @@ def stop_running():
 run = threading.Timer(40, stop_running)
 run.start()
 
+# To time proposal turnaround time
+start_times = []
+
 """
 Main loop
 """
 
 def main():
     global update, propose_time, election_timer, heartbeat_timer, proposal_timer
-    global running, leaderId
+    global running, start_times, leaderId
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
@@ -285,10 +316,10 @@ def main():
             update_everyone(False)
         if propose_time:
             propose_time = False
-            # TODO measure turnaround time on propose
-            # TODO save results in /home/ubuntu/{host_name}.txt
-            entry = raft_pb2.LogEntry(data = this_id+str(counter), 
-                                          term = currentTerm)
+            entry = raft_pb2.LogEntry(data = str(counter), 
+                                          term = currentTerm,
+                                          proposer = this_id)
+            start_times.append((time.time(), str(counter)))
             propose(entry, leaderId)
             randTime = random.randint(50,100)
             proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 

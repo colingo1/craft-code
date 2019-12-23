@@ -23,6 +23,12 @@ service Raft {
   rpc AppendEntries(Entries) returns (Ack) {}
 
   rpc ReceivePropose(Proposal) returns (Ack) {}
+
+  rpc Notified(Entry) returns (Ack) {}
+}
+
+message Entry{
+  LogEntry entry = 1;
 }
 
 message Proposal{

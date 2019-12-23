@@ -29,6 +29,11 @@ class RaftStub(object):
         request_serializer=raft__pb2.Proposal.SerializeToString,
         response_deserializer=raft__pb2.Ack.FromString,
         )
+    self.Notified = channel.unary_unary(
+        '/Raft/Notified',
+        request_serializer=raft__pb2.Entry.SerializeToString,
+        response_deserializer=raft__pb2.Ack.FromString,
+        )
 
 
 class RaftServicer(object):
@@ -57,6 +62,13 @@ class RaftServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def Notified(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
 
 def add_RaftServicer_to_server(servicer, server):
   rpc_method_handlers = {
@@ -73,6 +85,11 @@ def add_RaftServicer_to_server(servicer, server):
       'ReceivePropose': grpc.unary_unary_rpc_method_handler(
           servicer.ReceivePropose,
           request_deserializer=raft__pb2.Proposal.FromString,
+          response_serializer=raft__pb2.Ack.SerializeToString,
+      ),
+      'Notified': grpc.unary_unary_rpc_method_handler(
+          servicer.Notified,
+          request_deserializer=raft__pb2.Entry.FromString,
           response_serializer=raft__pb2.Ack.SerializeToString,
       ),
   }

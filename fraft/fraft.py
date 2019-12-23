@@ -246,7 +246,7 @@ def notify(server, entry):
         try:
             stub = fraft_pb2_grpc.fRaftStub(channel)
             debug_print("Notifying {}".format(server))
-            stub.Notified(fraft_pb2.Notification(entry = entry))
+            stub.Notified(fraft_pb2.Entry(entry = entry))
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(p_server))
