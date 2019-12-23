@@ -29,6 +29,11 @@ class fRaftStub(object):
         request_serializer=fraft__pb2.Proposal.SerializeToString,
         response_deserializer=fraft__pb2.Ack.FromString,
         )
+    self.Notified = channel.unary_unary(
+        '/fRaft/Notified',
+        request_serializer=fraft__pb2.Entry.SerializeToString,
+        response_deserializer=fraft__pb2.Ack.FromString,
+        )
 
 
 class fRaftServicer(object):
@@ -57,6 +62,13 @@ class fRaftServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def Notified(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
 
 def add_fRaftServicer_to_server(servicer, server):
   rpc_method_handlers = {
@@ -73,6 +85,11 @@ def add_fRaftServicer_to_server(servicer, server):
       'ReceivePropose': grpc.unary_unary_rpc_method_handler(
           servicer.ReceivePropose,
           request_deserializer=fraft__pb2.Proposal.FromString,
+          response_serializer=fraft__pb2.Ack.SerializeToString,
+      ),
+      'Notified': grpc.unary_unary_rpc_method_handler(
+          servicer.Notified,
+          request_deserializer=fraft__pb2.Entry.FromString,
           response_serializer=fraft__pb2.Ack.SerializeToString,
       ),
   }
