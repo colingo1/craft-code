@@ -136,7 +136,7 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
         leaderId = request.leaderId
         election_timer.cancel()
         randTime = random.randint(150,300)
-        election_timer = threading.Timer(randTime/100.0, election_timeout) 
+        election_timer = threading.Timer(randTime/1000.0, election_timeout) 
         election_timer.start()
         if request.term > currentTerm:
             currentTerm = request.term
@@ -279,7 +279,6 @@ def update_everyone(heartbeat):
 
             # Update commitIndex and notify client
             commitIndex = k
-            # Notify proposer
             notify(log[k].proposer, log[k])
             k += 1
         else: # Wait for this entry to be committed 
@@ -299,7 +298,7 @@ def update_everyone(heartbeat):
     commitIndex = new_commit_index
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(50/100.0, heartbeat_timeout) 
+    heartbeat_timer = threading.Timer(50/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
@@ -338,7 +337,7 @@ def hold_election():
         current_state = "follower"
         global election_timer
         randTime = random.randint(150,300)
-        election_timer = threading.Timer(randTime/100.0, election_timeout) 
+        election_timer = threading.Timer(randTime/1000.0, election_timeout) 
         election_timer.start()
 
 def propose_all(entry):
@@ -373,7 +372,7 @@ def election_timeout():
     global current_state
     debug_print("Election timeout")
     current_state = "candidate"
-election_timer = threading.Timer(150/100.0, election_timeout) 
+election_timer = threading.Timer(150/1000.0, election_timeout) 
 election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
@@ -431,12 +430,12 @@ def main(args):
             propose_all(entry)
             if args[1] == "propose":
                 randTime = random.randint(50,100)
-                proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
+                proposal_timer = threading.Timer(randTime/1000.0, propose_timeout) 
                 proposal_timer.start()
         if current_state == "candidate":
             hold_election()
         counter += 1
-        time.sleep(5/100.0)
+        time.sleep(5/1000.0)
 
 #def main():
 #    server_thread = threading.Thread(target=start_grpc_server,daemon=True)
