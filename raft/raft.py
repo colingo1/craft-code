@@ -137,15 +137,12 @@ class Raft(raft_pb2_grpc.RaftServicer):
 
     def Notified(self,request,context):
         global start_times
-        for t in start_times:
-            if t[1] == request.entry.data:
-                elapsed_time = time.time() - t[0]
-                f=open("/home/ubuntu/"+this_id+".txt", "a+")
-                f.write(str(elapsed_time)+"\n")
-                f.close()
-                return ack(True)
-        return ack(False)
-
+        t = start_times[request.entry.data]
+        elapsed_time = time.time() - t
+        f=open("/home/ubuntu/"+this_id+".txt", "a+")
+        f.write(str(elapsed_time)+"\n")
+        f.close()
+        return ack(True)
 
 def send_append_entries(server,heartbeat):
     global nextIndex, matchIndex, commitIndex, currentTerm
@@ -296,13 +293,13 @@ run = threading.Timer(40, stop_running)
 run.start()
 
 # To time proposal turnaround time
-start_times = []
+start_times = {}
 
 """
 Main loop
 """
 
-def main():
+def main(args):
     global update, propose_time, election_timer, heartbeat_timer, proposal_timer
     global running, start_times, leaderId
 
@@ -314,12 +311,12 @@ def main():
         if current_state == "leader" and update:
             update = False
             update_everyone(False)
-        if propose_time:
+        if propose_time and len(args) == 2:
             propose_time = False
             entry = raft_pb2.LogEntry(data = str(counter), 
                                           term = currentTerm,
                                           proposer = this_id)
-            start_times.append((time.time(), str(counter)))
+            start_times[str(counter)] = time.time()
             propose(entry, leaderId)
             randTime = random.randint(50,100)
             proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
@@ -361,4 +358,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)
