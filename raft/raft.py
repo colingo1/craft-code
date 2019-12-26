@@ -170,7 +170,7 @@ def send_append_entries(server,heartbeat):
             response = stub.AppendEntries(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex))
             if response.term > currentTerm:
                 global current_state
-                currentTerm = response.Term
+                currentTerm = response.term
                 current_state = "follower"
                 return False
             if not response.success:
