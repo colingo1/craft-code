@@ -261,7 +261,7 @@ def hold_election():
 
 
 def start_grpc_server():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))
     raft_pb2_grpc.add_RaftServicer_to_server(Raft(), server)
     server.add_insecure_port('[::]:{}'.format(my_port))
     server.start()

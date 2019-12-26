@@ -365,7 +365,7 @@ def propose_all(entry):
                 debug_print("couldn't connect to {}".format(server))
 
 def start_grpc_server():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))
     fraft_pb2_grpc.add_fRaftServicer_to_server(fRaft(), server)
     server.add_insecure_port('[::]:{}'.format(my_port))
     server.start()
