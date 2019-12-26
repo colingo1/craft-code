@@ -57,6 +57,8 @@ host_file.close()
 
 os.system("touch /home/ubuntu/"+this_id+".txt")
 
+first = True
+
 def debug_print(m):
     if DEBUG:
         print(m)
@@ -126,7 +128,15 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
 
     def AppendEntries(self,request,context):
         global log, commitIndex, currentTerm, leaderId
-        global election_timer
+        global election_timer, first, run, proposal_timer
+
+        if first:
+            first = False
+            proposal_timer = threading.Timer(5, propose_timeout)
+            proposal_timer.start()
+            run = threading.Timer(40, stop_running)
+            run.start()
+
 
         debug_print("Received AppendEntries from {}".format(request.leaderId))
         if request.term < currentTerm:
@@ -389,8 +399,6 @@ def propose_timeout():
     global propose_time
     debug_print("Proposal timeout")
     propose_time = True
-proposal_timer = threading.Timer(5, propose_timeout)
-proposal_timer.start()
 
 # Run experiment for set amount of time
 running = True
@@ -398,8 +406,6 @@ def stop_running():
     global running
     debug_print("Running timeout")
     running = False
-run = threading.Timer(40, stop_running)
-run.start()
 
 # To time proposal turnaround time
 start_times = {}
