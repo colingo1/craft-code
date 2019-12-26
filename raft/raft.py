@@ -71,6 +71,8 @@ def ack(success):
     return raft_pb2.Ack(term = currentTerm, success = success)
 
 def term_equal(log_index, term):
+    if log_index < 0:
+        return True
     if len(log)-1 < log_index:
         return False
     return log[log_index].term == term
@@ -161,7 +163,9 @@ def send_append_entries(server,heartbeat):
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
             prev_index = nextIndex[server]-1
-            prev_term = log[prev_index].term
+            prev_term = 0
+            if prev_index >= 0:
+                prev_term = log[prev_index].term
             if heartbeat:
                 entries = []
             else:
