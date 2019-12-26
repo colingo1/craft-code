@@ -85,7 +85,7 @@ def propose(entry, server):
         stub = raft_pb2_grpc.RaftStub(channel)
         debug_print("Sending Proposal to {}".format(server))
         stub.ReceivePropose(raft_pb2.Proposal(entry = entry, 
-                                               proposer = this_id))
+                                               proposer = this_id), timeout=5)
 
 class Raft(raft_pb2_grpc.RaftServicer):
 
@@ -170,7 +170,7 @@ def send_append_entries(server,heartbeat):
             else:
                 entries = log[prev_index+1:]
             debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
-            response = stub.AppendEntries(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex))
+            response = stub.AppendEntries(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
             if response.term > currentTerm:
                 global current_state
                 currentTerm = response.term
@@ -194,7 +194,7 @@ def notify(server, entry):
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
             debug_print("Notifying {}".format(server))
-            stub.Notified(raft_pb2.Entry(entry = entry))
+            stub.Notified(raft_pb2.Entry(entry = entry), timeout=5)
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(p_server))
@@ -238,7 +238,7 @@ def hold_election():
             with grpc.insecure_channel(server) as channel:
                 stub = raft_pb2_grpc.RaftStub(channel)
                 try:
-                    response = stub.RequestVote(raft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = len(log)-1, lastLogTerm = log[-1].term))
+                    response = stub.RequestVote(raft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = len(log)-1, lastLogTerm = log[-1].term), timeout=5)
                     if response.success:
                         vote_count +=1
                         debug_print("received vote from {}".format(server))

@@ -99,7 +99,7 @@ def propose(entry, index, p_server):
             p_stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
                                                    index = index,
                                                    commitIndex = commitIndex,
-                                                   proposer = this_id))
+                                                   proposer = this_id), timeout=5)
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(p_server))
@@ -209,7 +209,7 @@ def send_append_entries(server,heartbeat):
             else:
                 entries = log[prev_index+1:]
             debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
-            response = stub.AppendEntries(fraft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex))
+            response = stub.AppendEntries(fraft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
             if response.term > currentTerm:
                 global current_state
                 currentTerm = response.term
@@ -254,7 +254,7 @@ def notify(server, entry):
         try:
             stub = fraft_pb2_grpc.fRaftStub(channel)
             debug_print("Notifying {}".format(server))
-            stub.Notified(fraft_pb2.Entry(entry = entry))
+            stub.Notified(fraft_pb2.Entry(entry = entry), timeout=5)
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(p_server))
@@ -329,7 +329,7 @@ def hold_election():
             with grpc.insecure_channel(server) as channel:
                 stub = fraft_pb2_grpc.fRaftStub(channel)
                 try:
-                    response = stub.RequestVote(fraft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term))
+                    response = stub.RequestVote(fraft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term), timeout=5)
                     if response.success:
                         vote_count +=1
                         debug_print("received vote from {}".format(server))
@@ -359,7 +359,7 @@ def propose_all(entry):
                 stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
                                                index = index,
                                                commitIndex = commitIndex,
-                                               proposer = this_id))
+                                               proposer = this_id), timeout=5)
             except grpc.RpcError as e:
                 debug_print(e)
                 debug_print("couldn't connect to {}".format(server))
