@@ -101,7 +101,7 @@ class Raft(raft_pb2_grpc.RaftServicer):
         if first:
             first = False
             propose_time = True
-            run = threading.Timer(40, stop_running)
+            run = threading.Timer(60*3, stop_running)
             run.start()
 
 
