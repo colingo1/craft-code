@@ -96,12 +96,11 @@ class Raft(raft_pb2_grpc.RaftServicer):
 
     def AppendEntries(self,request,context):
         global log, commitIndex, currentTerm, leaderId
-        global election_timer, first, run, proposal_timer
+        global election_timer, first, run, propose_time
 
         if first:
             first = False
-            proposal_timer = threading.Timer(5, propose_timeout)
-            proposal_timer.start()
+            propose_time = True
             run = threading.Timer(40, stop_running)
             run.start()
 
