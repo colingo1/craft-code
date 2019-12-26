@@ -441,7 +441,7 @@ def main(args):
         if current_state == "candidate":
             hold_election()
         counter += 1
-        time.sleep(5/100.0)
+        time.sleep(5/1000.0)
 
 #def main():
 #    server_thread = threading.Thread(target=start_grpc_server,daemon=True)

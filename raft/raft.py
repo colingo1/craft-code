@@ -332,7 +332,7 @@ def main(args):
         if current_state == "candidate":
             hold_election()
         counter += 1
-        time.sleep(5/100.0)
+        time.sleep(5/1000.0)
 
 
 
