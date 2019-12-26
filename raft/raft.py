@@ -329,7 +329,7 @@ def main(args):
             start_times[str(counter)] = time.time()
             propose(entry, leaderId)
             if args[1] == "propose":
-                randTime = random.randint(50,100)
+                randTime = random.randint(200,500)
                 proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
                 proposal_timer.start()
         if current_state == "candidate":
