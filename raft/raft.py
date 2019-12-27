@@ -123,7 +123,7 @@ class Raft(raft_pb2_grpc.RaftServicer):
         if request.term > currentTerm:
             currentTerm = request.term
         
-        log = log[:request.prevLogIndex+2]
+        log = log[:request.prevLogIndex+1]
 
         for entry in request.entries:
             log.append(entry)
