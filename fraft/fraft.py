@@ -96,7 +96,7 @@ def propose(entry, index, p_server):
         try:
             p_stub = fraft_pb2_grpc.fRaftStub(p_channel)
             debug_print("Sending Proposal to {} with index {}".format(p_server,index))
-            p_stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
+            response = p_stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
                                                    index = index,
                                                    commitIndex = commitIndex,
                                                    proposer = this_id), timeout=5)
@@ -254,7 +254,7 @@ def notify(server, entry):
         try:
             stub = fraft_pb2_grpc.fRaftStub(channel)
             debug_print("Notifying {}".format(server))
-            stub.Notified(fraft_pb2.Entry(entry = entry), timeout=5)
+            response = stub.Notified(fraft_pb2.Entry(entry = entry), timeout=5)
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
@@ -356,7 +356,7 @@ def propose_all(entry):
         with grpc.insecure_channel(server) as channel:
             stub = fraft_pb2_grpc.fRaftStub(channel)
             try:
-                stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
+                response = stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
                                                index = index,
                                                commitIndex = commitIndex,
                                                proposer = this_id), timeout=5)

@@ -82,10 +82,14 @@ def propose(entry, server):
     if server == "":
         return
     with grpc.insecure_channel(server) as channel:
-        stub = raft_pb2_grpc.RaftStub(channel)
-        debug_print("Sending Proposal to {}".format(server))
-        stub.ReceivePropose(raft_pb2.Proposal(entry = entry, 
-                                               proposer = this_id), timeout=5)
+        try:
+            stub = raft_pb2_grpc.RaftStub(channel)
+            debug_print("Sending Proposal to {}".format(server))
+            response = stub.ReceivePropose(raft_pb2.Proposal(entry = entry, 
+                                                   proposer = this_id), timeout=5)
+        except grpc.RpcError as e:
+            debug_print(e)
+            debug_print("couldn't connect to {}".format(server))
 
 class Raft(raft_pb2_grpc.RaftServicer):
 
@@ -183,6 +187,7 @@ def send_append_entries(server,heartbeat):
                 nextIndex[server] = len(log)
                 matchIndex[server] = len(log)-1
         except grpc.RpcError as e:
+            debug_print(e)
             debug_print("couldn't connect to {}".format(server))
     return matchIndex[server]
 
@@ -194,7 +199,7 @@ def notify(server, entry):
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
             debug_print("Notifying {}".format(server))
-            stub.Notified(raft_pb2.Entry(entry = entry), timeout=5)
+            response = stub.Notified(raft_pb2.Entry(entry = entry), timeout=5)
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
