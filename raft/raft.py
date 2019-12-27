@@ -162,14 +162,12 @@ class Raft(raft_pb2_grpc.RaftServicer):
         return ack(True)
 
 def send_append_entries(server,heartbeat):
-    global nextIndex, matchIndex, commitIndex, currentTerm
+    global nextIndex, matchIndex, commitIndex, currentTerm, log
     with grpc.insecure_channel(server) as channel:
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
             prev_index = nextIndex[server]-1
-            prev_term = 0
-            if prev_index >= 0:
-                prev_term = log[prev_index].term
+            prev_term = log[prev_index].term
             if heartbeat:
                 entries = []
             else:
