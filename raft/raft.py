@@ -115,10 +115,11 @@ class Raft(raft_pb2_grpc.RaftServicer):
         if not term_equal(request.prevLogIndex, request.prevLogTerm):
             return ack(False)
         leaderId = request.leaderId
-        election_timer.cancel()
-        randTime = random.randint(150,300)
-        election_timer = threading.Timer(randTime/100.0, election_timeout) 
-        election_timer.start()
+        if leaderId != this_id:
+            election_timer.cancel()
+            randTime = random.randint(250,500)
+            election_timer = threading.Timer(randTime/100.0, election_timeout) 
+            election_timer.start()
         if request.term > currentTerm:
             currentTerm = request.term
         
@@ -258,7 +259,7 @@ def hold_election():
         debug_print("lost election")
         current_state = "follower"
         global election_timer
-        randTime = random.randint(150,300)
+        randTime = random.randint(250,500)
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
         election_timer.start()
 
