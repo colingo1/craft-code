@@ -206,7 +206,7 @@ def send_append_entries(server,heartbeat):
             stub = fraft_pb2_grpc.fRaftStub(channel)
             prev_index = nextIndex[server]-1
             prev_term = 0 
-            if len(log) > prev_index:
+            if len(log) > prev_index and prev_index >= 0:
                 prev_term = log[prev_index].term 
             if heartbeat:
                 entries = []
