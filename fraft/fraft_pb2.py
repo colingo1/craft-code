@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0b\x66raft.proto\"!\n\x05\x45ntry\x12\x18\n\x05\x65ntry\x18\x01 \x01(\x0b\x32\t.LogEntry\"Z\n\x08Proposal\x12\x18\n\x05\x65ntry\x18\x01 \x01(\x0b\x32\t.LogEntry\x12\r\n\x05index\x18\x02 \x01(\r\x12\x13\n\x0b\x63ommitIndex\x18\x03 \x01(\r\x12\x10\n\x08proposer\x18\x04 \x01(\t\"L\n\x08LogEntry\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t\x12\x12\n\nappendedBy\x18\x03 \x01(\x08\x12\x10\n\x08proposer\x18\x04 \x01(\t\"\x86\x01\n\x07\x45ntries\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x10\n\x08leaderId\x18\x02 \x01(\t\x12\x14\n\x0cprevLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0bprevLogTerm\x18\x04 \x01(\x05\x12\x1a\n\x07\x65ntries\x18\x05 \x03(\x0b\x32\t.LogEntry\x12\x14\n\x0cleaderCommit\x18\x06 \x01(\r\"$\n\x03\x41\x63k\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x0f\n\x07success\x18\x02 \x01(\x08\"[\n\x0bVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\r\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\t\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\r\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\r2\x90\x01\n\x05\x66Raft\x12#\n\x0bRequestVote\x12\x0c.VoteRequest\x1a\x04.Ack\"\x00\x12!\n\rAppendEntries\x12\x08.Entries\x1a\x04.Ack\"\x00\x12#\n\x0eReceivePropose\x12\t.Proposal\x1a\x04.Ack\"\x00\x12\x1a\n\x08Notified\x12\x06.Entry\x1a\x04.Ack\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\x0b\x66raft.proto\"!\n\x05\x45ntry\x12\x18\n\x05\x65ntry\x18\x01 \x01(\x0b\x32\t.LogEntry\"Z\n\x08Proposal\x12\x18\n\x05\x65ntry\x18\x01 \x01(\x0b\x32\t.LogEntry\x12\r\n\x05index\x18\x02 \x01(\r\x12\x13\n\x0b\x63ommitIndex\x18\x03 \x01(\r\x12\x10\n\x08proposer\x18\x04 \x01(\t\"L\n\x08LogEntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t\x12\x12\n\nappendedBy\x18\x03 \x01(\x08\x12\x10\n\x08proposer\x18\x04 \x01(\t\"\x86\x01\n\x07\x45ntries\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x10\n\x08leaderId\x18\x02 \x01(\t\x12\x14\n\x0cprevLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0bprevLogTerm\x18\x04 \x01(\x05\x12\x1a\n\x07\x65ntries\x18\x05 \x03(\x0b\x32\t.LogEntry\x12\x14\n\x0cleaderCommit\x18\x06 \x01(\x05\"$\n\x03\x41\x63k\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07success\x18\x02 \x01(\x08\"[\n\x0bVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\t\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\x05\x32\x90\x01\n\x05\x66Raft\x12#\n\x0bRequestVote\x12\x0c.VoteRequest\x1a\x04.Ack\"\x00\x12!\n\rAppendEntries\x12\x08.Entries\x1a\x04.Ack\"\x00\x12#\n\x0eReceivePropose\x12\t.Proposal\x1a\x04.Ack\"\x00\x12\x1a\n\x08Notified\x12\x06.Entry\x1a\x04.Ack\"\x00\x62\x06proto3')
 )
 
 
@@ -118,7 +118,7 @@ _LOGENTRY = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='term', full_name='LogEntry.term', index=0,
-      number=1, type=13, cpp_type=3, label=1,
+      number=1, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -170,7 +170,7 @@ _ENTRIES = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='term', full_name='Entries.term', index=0,
-      number=1, type=13, cpp_type=3, label=1,
+      number=1, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -205,7 +205,7 @@ _ENTRIES = _descriptor.Descriptor(
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='leaderCommit', full_name='Entries.leaderCommit', index=5,
-      number=6, type=13, cpp_type=3, label=1,
+      number=6, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -236,7 +236,7 @@ _ACK = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='term', full_name='Ack.term', index=0,
-      number=1, type=13, cpp_type=3, label=1,
+      number=1, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -274,7 +274,7 @@ _VOTEREQUEST = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='term', full_name='VoteRequest.term', index=0,
-      number=1, type=13, cpp_type=3, label=1,
+      number=1, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -288,14 +288,14 @@ _VOTEREQUEST = _descriptor.Descriptor(
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='lastLogIndex', full_name='VoteRequest.lastLogIndex', index=2,
-      number=3, type=13, cpp_type=3, label=1,
+      number=3, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='lastLogTerm', full_name='VoteRequest.lastLogTerm', index=3,
-      number=4, type=13, cpp_type=3, label=1,
+      number=4, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,

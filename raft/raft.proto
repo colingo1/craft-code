@@ -37,24 +37,24 @@ message Proposal{
 }
 
 message LogEntry{
-  uint32 term = 1;
+  int32 term = 1;
   string data = 2;
   string proposer = 3;
 }
 
 //an argument to the AppendEntries RPC
 message Entries{
-  uint32 term = 1;
+  int32 term = 1;
   string leaderId = 2;
-  uint32 prevLogIndex = 3;
-  uint32 prevLogTerm = 4;
+  int32 prevLogIndex = 3;
+  int32 prevLogTerm = 4;
   repeated LogEntry entries = 5;
-  uint32 leaderCommit = 6;
+  int32 leaderCommit = 6;
 }
 
 //returned from both RequestVote and AppendEntries
 message Ack{
-  uint32 term = 1;
+  int32 term = 1;
   bool success = 2;
 }
 
