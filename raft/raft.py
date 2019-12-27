@@ -167,7 +167,9 @@ def send_append_entries(server,heartbeat):
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
             prev_index = nextIndex[server]-1
-            prev_term = log[prev_index].term
+            prev_term = 0
+            if len(log) > prev_index:
+                prev_term = log[prev_index].term
             if heartbeat:
                 entries = []
             else:
