@@ -197,7 +197,7 @@ def notify(server, entry):
             stub.Notified(raft_pb2.Entry(entry = entry), timeout=5)
         except grpc.RpcError as e:
             debug_print(e)
-            debug_print("couldn't connect to {}".format(p_server))
+            debug_print("couldn't connect to {}".format(server))
 
 
 def update_everyone(heartbeat):
