@@ -481,6 +481,10 @@ def main(args):
     counter = 0
     current_state[1] = args[2]
     current_state[0] = args[3]
+    if current_state[0] == "leader":
+        become_leader(0)
+    if current_state[1] == "leader":
+        become_leader(1)
     
     while running:
         for level in range(0,1):
