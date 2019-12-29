@@ -121,6 +121,8 @@ class Raft(raft_pb2_grpc.RaftServicer):
             election_timer = threading.Timer(randTime/100.0, election_timeout) 
             election_timer.start()
         if request.term > currentTerm:
+            global current_state
+            current_state = "follower"
             currentTerm = request.term
         
         log = log[:request.prevLogIndex+1]
@@ -142,6 +144,8 @@ class Raft(raft_pb2_grpc.RaftServicer):
         if request.term < currentTerm:
             return ack(False)
         if request.term > currentTerm:
+            global current_state
+            current_state = "follower"
             currentTerm = request.term
 
         #Haven't yet committed vote
@@ -249,6 +253,7 @@ def hold_election():
                         vote_count +=1
                         debug_print("received vote from {}".format(server))
                     if response.term > currentTerm:
+                        current_state = "follower"
                         currentTerm = response.term
                 except grpc.RpcError as e:
                     debug_print("couldn't connect to {}".format(server))

@@ -150,6 +150,8 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
             election_timer.start()
 
         if request.term > currentTerm:
+            global current_state
+            current_state = "follower"
             currentTerm = request.term
             debug_print("Sending uncommitted entries to {}".format(request.leaderId))
             # This is a new leader, need to send uncommitted entries
@@ -177,6 +179,8 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
         if request.term < currentTerm:
             return ack(False)
         if request.term > currentTerm:
+            global current_state
+            current_state = "follower"
             currentTerm = request.term
 
         # If haven't voted yet, and at least as up-to-date as self, vote for
@@ -338,6 +342,7 @@ def hold_election():
                         vote_count +=1
                         debug_print("received vote from {}".format(server))
                     if response.term > currentTerm:
+                        current_state = "follower"
                         currentTerm = response.term
                 except grpc.RpcError as e:
                     debug_print(e)
