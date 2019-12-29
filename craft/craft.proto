@@ -22,13 +22,20 @@ service cRaft {
 
   rpc AppendEntries(Entries) returns (Ack) {}
 
+  rpc AppendEntry(Entry) returns (Ack) {}
+
+  rpc GlobalAppendEntries(Entries) returns (Ack) {}
+
   rpc ReceivePropose(Proposal) returns (Ack) {}
+
+  rpc GlobalReceivePropose(Proposal) returns (Ack) {}
 
   rpc Notified(Entry) returns (Ack) {}
 }
 
 message Entry{
   LogEntry entry = 1;
+  int32 index = 2;
 }
 
 message Proposal{

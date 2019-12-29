@@ -24,8 +24,23 @@ class cRaftStub(object):
         request_serializer=craft__pb2.Entries.SerializeToString,
         response_deserializer=craft__pb2.Ack.FromString,
         )
+    self.AppendEntry = channel.unary_unary(
+        '/cRaft/AppendEntry',
+        request_serializer=craft__pb2.Entry.SerializeToString,
+        response_deserializer=craft__pb2.Ack.FromString,
+        )
+    self.GlobalAppendEntries = channel.unary_unary(
+        '/cRaft/GlobalAppendEntries',
+        request_serializer=craft__pb2.Entries.SerializeToString,
+        response_deserializer=craft__pb2.Ack.FromString,
+        )
     self.ReceivePropose = channel.unary_unary(
         '/cRaft/ReceivePropose',
+        request_serializer=craft__pb2.Proposal.SerializeToString,
+        response_deserializer=craft__pb2.Ack.FromString,
+        )
+    self.GlobalReceivePropose = channel.unary_unary(
+        '/cRaft/GlobalReceivePropose',
         request_serializer=craft__pb2.Proposal.SerializeToString,
         response_deserializer=craft__pb2.Ack.FromString,
         )
@@ -55,7 +70,28 @@ class cRaftServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def AppendEntry(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def GlobalAppendEntries(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
   def ReceivePropose(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def GlobalReceivePropose(self, request, context):
     # missing associated documentation comment in .proto file
     pass
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -82,8 +118,23 @@ def add_cRaftServicer_to_server(servicer, server):
           request_deserializer=craft__pb2.Entries.FromString,
           response_serializer=craft__pb2.Ack.SerializeToString,
       ),
+      'AppendEntry': grpc.unary_unary_rpc_method_handler(
+          servicer.AppendEntry,
+          request_deserializer=craft__pb2.Entry.FromString,
+          response_serializer=craft__pb2.Ack.SerializeToString,
+      ),
+      'GlobalAppendEntries': grpc.unary_unary_rpc_method_handler(
+          servicer.GlobalAppendEntries,
+          request_deserializer=craft__pb2.Entries.FromString,
+          response_serializer=craft__pb2.Ack.SerializeToString,
+      ),
       'ReceivePropose': grpc.unary_unary_rpc_method_handler(
           servicer.ReceivePropose,
+          request_deserializer=craft__pb2.Proposal.FromString,
+          response_serializer=craft__pb2.Ack.SerializeToString,
+      ),
+      'GlobalReceivePropose': grpc.unary_unary_rpc_method_handler(
+          servicer.GlobalReceivePropose,
           request_deserializer=craft__pb2.Proposal.FromString,
           response_serializer=craft__pb2.Ack.SerializeToString,
       ),

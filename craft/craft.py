@@ -21,35 +21,37 @@ import craft_pb2_grpc
 DEBUG = True
 # Stable storage of all servers as defined in the cRaft paper.
 currentTerm = 0;
-log = [craft_pb2.LogEntry(data = "NULL", term = 0, appendedBy = True)];
+log = [[craft_pb2.LogEntry(data = "NULL", term = 0, appendedBy = True)]
+        [craft_pb2.LogEntry(data = "NULL", term = 0, appendedBy = True)]]
 votedFor = "";
 
 # Volatile state of all servers
-commitIndex = 0;
-lastApplied = 0;
-leaderId = "";
+commitIndex = [0,0];
+lastApplied = [0,0];
+leaderId = ["",""];
+lastGlobalIndex = 0
+proposal_count = 0
 
 # Volatile state of leaders
-nextIndex = {}
-matchIndex = {}
-fastMatchIndex = {}
+nextIndex = [{},{}]
+matchIndex = [{},{}]
+fastMatchIndex = [{},{}]
 
-current_state = "follower"
+current_state = ["follower","follower"]
 
 # Read from cluster.txt file for members of cluster
 instance_file = open("cluster.txt", 'r')
-members = []
+members = [[],[]]
 lines = instance_file.readlines()
 for line in lines:
-    members.append(line[0:-1]+":8100") 
+    members[0].append(line[0:-1]+":8100") 
 instance_file.close()
 
 # Read from instances.txt file for members
-instance_file = open("instances.txt", 'r')
-members_all = []
+instance_file = open("global.txt", 'r')
 lines = instance_file.readlines()
 for line in lines:
-    members_all.append(line[0:-1]+":8100") 
+    members[1].append(line[0:-1]+":8100") 
 instance_file.close()
 
 # Possible Entries structure
@@ -89,14 +91,13 @@ def term_equal(log_index, term):
         return False
     return log[log_index].term == term
 
-def insert_log(entry, index, appendedBy):
-    global log
-    while len(log) <= index:
-        log.append(None)
+def insert_log(entry, index, appendedBy, level):
+    while len(log[level]) <= index:
+        log[level].append(None)
     entry.appendedBy = appendedBy
-    log[index] = entry
+    log[level][index] = entry
 
-def propose(entry, index, p_server): 
+def propose(entry, index, p_server, level=0): 
     global commitIndex, this_id
     if p_server == "":
         return
@@ -104,7 +105,13 @@ def propose(entry, index, p_server):
         try:
             p_stub = craft_pb2_grpc.cRaftStub(p_channel)
             debug_print("Sending Proposal to {} with index {}".format(p_server,index))
-            response = p_stub.ReceivePropose(craft_pb2.Proposal(entry = entry, 
+            if level == 0:
+                response = p_stub.ReceivePropose(craft_pb2.Proposal(entry = entry, 
+                                                   index = index,
+                                                   commitIndex = commitIndex,
+                                                   proposer = this_id), timeout=5)
+            else:
+                response = p_stub.GlobalReceivePropose(craft_pb2.Proposal(entry = entry, 
                                                    index = index,
                                                    commitIndex = commitIndex,
                                                    proposer = this_id), timeout=5)
@@ -114,73 +121,79 @@ def propose(entry, index, p_server):
 
 class cRaft(craft_pb2_grpc.cRaftServicer):
 
-    def ReceivePropose(self,request,context):
+    def GlobalReceivePropose(self,request,context):
+        return self.ReceivePropose(request,context,1)
+
+    def ReceivePropose(self,request,context,level=0):
         global log, possibleEntries, members, leaderId, current_state
 
         debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
-        if request.index >= len(log) or log[request.index] == None:
-            insert_log(request.entry, request.index, False)
+        if request.index >= len(log[level]) or log[level][request.index] == None:
+            insert_log(log[level], request.entry, request.index, False)
+            if level == 1:
+                global_update_everyone(request.entry, request.index)
 
-        if current_state == "leader":
+        if current_state[level] == "leader":
             # Add empty entries to log and possibleEntries
-            while request.index >= len(possibleEntries):
-                possibleEntries.append([None]*len(members))
+            while request.index >= len(possibleEntries[level]):
+                possibleEntries[level].append([None]*len(members[level]))
 
             # Add proposer's vote to possibleEntries
-            proposerIndex = members.index(request.proposer)
-            possibleEntries[request.index][proposerIndex] = request.entry
-            nextIndex[request.proposer] = request.commitIndex+1
+            proposerIndex = members[level].index(request.proposer)
+            possibleEntries[level][request.index][proposerIndex] = request.entry
+            nextIndex[level][request.proposer] = request.commitIndex+1
         else:
-            propose(log[request.index], request.index, leaderId)
+            propose(log[level][request.index], request.index, leaderId[level], level)
         return ack(True)
 
-    def AppendEntries(self,request,context):
-        global log, commitIndex, currentTerm, leaderId
-        global election_timer, first, run, propose_time
+    def GlobalAppendEntries(self,request,context):
+        return self.AppendEntries(request,context,1)
+
+    def AppendEntries(self,request,context,level=0):
+        global log, commitIndex, currentTerm
+        global timer, first, run, propose_time
 
         if first:
             first = False
             propose_time = True
-            run = threading.Timer(40, stop_running)
+            run = threading.Timer(60*3, stop_running)
             run.start()
-
 
         debug_print("Received AppendEntries from {}".format(request.leaderId))
         if request.term < currentTerm:
             return ack(False)
         #if not term_equal(request.prevLogIndex, request.prevLogTerm):
         #    return ack(False)
-        leaderId = request.leaderId
-        if leaderId != this_id:
-            election_timer.cancel()
-            randTime = random.randint(250,500)
-            election_timer = threading.Timer(randTime/100.0, election_timeout) 
-            election_timer.start()
 
         if request.term > currentTerm:
             global current_state
-            current_state = "follower"
+            current_state[level] = "follower"
             currentTerm = request.term
             debug_print("Sending uncommitted entries to {}".format(request.leaderId))
             # This is a new leader, need to send uncommitted entries
-            for i in range(commitIndex+1, len(log)):
-                propose(log[i], i, request.leaderId)
+            for i in range(commitIndex+1, len(log[level])):
+                propose(log[level][i], i, request.leaderId, level)
         
         # Overwrite existing entries
         i = 1
         for entry in request.entries:
             index = request.prevLogIndex+i
-            insert_log(entry, index, True)
+            insert_log(entry, index, level)
+            if level == 1:
+                global_update_everyone(entry, index)
             print("appended entry: {} to log in index {}".format(entry.data, index))
             i += 1
 
         oldCommitIndex = commitIndex
-        commitIndex = min(request.leaderCommit, len(log) -1)
-        if commitIndex > oldCommitIndex:
+        commitIndex[level] = min(request.leaderCommit, len(log) -1)
+        if commitIndex[level] > oldCommitIndex:
             debug_print("committing to {}".format(commitIndex))
 
         return ack(True)
 
+    def AppendEntry(self,request,context):
+        insert_log(request.entry, request.index, 1)
+        return ack(True)
 
     def RequestVote(self,request,context):
         global currentTerm, commitIndex
@@ -200,47 +213,50 @@ class cRaft(craft_pb2_grpc.cRaftServicer):
         # Do not vote for
         return ack(False)
 
-    def Notified(self,request,context):
-        global start_times, propose_time
-        t = start_times[request.entry.data]
+    def Notified(self,request,context,level=0):
+        global start_times, propose_time, proposal_count
+        t = start_times[level][request.entry.data]
         elapsed_time = time.time() - t
-        f=open("/home/ubuntu/"+this_id+".txt", "a+")
-        f.write(str(elapsed_time)+"\n")
-        f.close()
         propose_time = True
+        if level == 0:
+            proposal_count += 1
+
         return ack(True)
 
 
-def send_append_entries(server,heartbeat):
+def send_append_entries(server,heartbeat,level=0):
     global nextIndex, matchIndex, commitIndex, currentTerm
     with grpc.insecure_channel(server) as channel:
         try:
             stub = craft_pb2_grpc.cRaftStub(channel)
-            prev_index = nextIndex[server]-1
+            prev_index = nextIndex[level][server]-1
             prev_term = 0 
-            if len(log) > prev_index and prev_index >= 0:
-                prev_term = log[prev_index].term 
+            if len(log[level]) > prev_index and prev_index >= 0:
+                prev_term = log[level][prev_index].term 
             if heartbeat:
                 entries = []
             else:
-                entries = log[prev_index+1:]
+                entries = log[level][prev_index+1:]
             debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
-            response = stub.AppendEntries(craft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
+            if level == 0:
+                response = stub.AppendEntries(craft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
+            else:
+                response = stub.GlobalAppendEntries(craft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
             if response.term > currentTerm:
                 global current_state
                 currentTerm = response.term
-                current_state = "follower"
+                current_state[level] = "follower"
                 return False
             if not response.success:
-                nextIndex[server] -=1
-                send_append_entries(server,heartbeat)
+                nextIndex[level][server] -=1
+                send_append_entries(server,heartbeat,level)
             if response.success and not heartbeat:
-                nextIndex[server] = len(log)
-                matchIndex[server] = len(log)-1
+                nextIndex[level][server] = len(log)
+                matchIndex[level][server] = len(log)-1
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
-    return matchIndex[server]
+    return matchIndex[level][server]
 
 def most_frequent(List): 
     List = [x for x in List if x is not None]
@@ -276,64 +292,82 @@ def notify(server, entry):
             debug_print("couldn't connect to {}".format(server))
 
 
-def update_everyone(heartbeat):
+def update_everyone(heartbeat,level=0):
     global commitIndex, possibleEntries
 
     # Fast-track commit check
-    k = commitIndex+1
-    while(len(possibleEntries) > k and
-          sum(x is not None for x in possibleEntries[k]) > len(members)/2):
+    k = commitIndex[level]+1
+    while(len(possibleEntries[level]) > k and
+          sum(x is not None for x in possibleEntries[level][k]) > len(members[level])/2):
         # Count votes for each entry
         # Insert entry e with most votes
-        e,count = most_frequent(possibleEntries[k])
-        insert_log(e,k,True)
+        e,count = most_frequent(possibleEntries[level][k])
+        insert_log(e,k,True,level)
+        if level == 1:
+            global_update_everyone(e, k)
 
         # Update fastMatchIndex for agents
-        for i in range(0,len(members)):
-            if possibleEntries[k][i] == e:
-                fastMatchIndex[members[i]] = k
+        for i in range(0,len(members[level])):
+            if possibleEntries[level][k][i] == e:
+                fastMatchIndex[level][members[i]] = k
 
         # If Fast-track succeeded
-        if count >= math.ceil(3.0*len(members)/4.0):
+        if count >= math.ceil(3.0*len(members[level])/4.0):
              
             # Remove e from possibleEntries
-            for j in range(k+1, len(possibleEntries)):
-                for i in range(0,len(members)):
-                    if possibleEntries[j][i] == e:
-                        possibleEntries[j][i] = None
+            for j in range(k+1, len(possibleEntries[level])):
+                for i in range(0,len(members[level])):
+                    if possibleEntries[level][j][i] == e:
+                        possibleEntries[level][j][i] = None
 
             # Update commitIndex and notify client
-            commitIndex = k
-            notify(log[k].proposer, log[k])
+            commitIndex[level] = k
+            notify(log[level][k].proposer, log[level][k])
             k += 1
         else: # Wait for this entry to be committed 
             break
 
     # Update followers 
-    for server in members:
-        send_append_entries(server,heartbeat)
-    new_commit_index = commitIndex
-    for i in range(commitIndex+1,len(log)):
-        greater_index = [index for index in matchIndex.values() if index >= i]
-        if len(greater_index) > len(members)/2:
+    for server in members[level]:
+        send_append_entries(server,heartbeat,level)
+    new_commit_index = commitIndex[level]
+    for i in range(commitIndex+1,len(log[level])):
+        greater_index = [index for index in matchIndex[level].values() if index >= i]
+        if len(greater_index) > len(members[level])/2:
             debug_print("committing to {}".format(i))
             new_commit_index = i
             # Notify proposer
-            notify(log[i].proposer, log[i])
-    commitIndex = new_commit_index
+            notify(log[level][i].proposer, log[level][i])
+    commitIndex[level] = new_commit_index
 
     global heartbeat_timer
     heartbeat_timer = threading.Timer(50/100.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
-def become_leader():
+def become_leader(level=0):
     global nextIndex, matchIndex, election_timer
     election_timer.cancel()
-    nextIndex = {member:len(log) for member in members}
-    matchIndex = {member:0 for member in members}
+    nextIndex[level] = {member:len(log[level]) for member in members[level]}
+    matchIndex[level] = {member:0 for member in members[level]}
 
-    update_everyone(True)
+    update_everyone(True,level)
+
+def global_update_everyone(entry, index):
+    global members
+
+    count = 0
+    while count <= len(members[0])/2:
+        count = 0
+        for server in members[0]:
+            with grpc.insecure_channel(server) as channel:
+                try:
+                    stub = craft_pb2_grpc.cRaftStub(channel)
+                    response = stub.AppendEntry(craft_pb2.Entry(entry = entry, index = index)
+                    count += 1
+                except grpc.RpcError as e:
+                    debug_print(e)
+                    debug_print("couldn't connect to {}".format(server))
 
 def hold_election():
     global currentTerm,matchIndex,current_state,commitIndex
@@ -366,14 +400,20 @@ def hold_election():
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
         election_timer.start()
 
-def propose_all(entry):
-    global members, log, commitIndex, this_id
+def propose_all(entry, level=0):
+    global members, log, commitIndex, this_id, global_members
     index = len(log)
-    for server in members:
+    for server in members[level]:
         with grpc.insecure_channel(server) as channel:
             stub = craft_pb2_grpc.cRaftStub(channel)
             try:
-                response = stub.ReceivePropose(craft_pb2.Proposal(entry = entry, 
+                if level == 0:
+                    response = stub.ReceivePropose(craft_pb2.Proposal(entry = entry, 
+                                               index = index,
+                                               commitIndex = commitIndex,
+                                               proposer = this_id), timeout=5)
+                else:
+                    response = stub.GlobalReceivePropose(craft_pb2.Proposal(entry = entry, 
                                                index = index,
                                                commitIndex = commitIndex,
                                                proposer = this_id), timeout=5)
@@ -394,19 +434,20 @@ Timer stop functions
 """
 
 # Used in followers to decide if leader has failed 
-def election_timeout():
-    global current_state
-    debug_print("Election timeout")
-    current_state = "candidate"
-election_timer = threading.Timer(500/100.0, election_timeout) 
-election_timer.start()
+#def election_timeout():
+#    global current_state
+#    debug_print("Election timeout")
+#    current_state = "candidate"
+#election_timer = threading.Timer(500/100.0, election_timeout) 
+#election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
-update = False
+update = [False, False]
 def heartbeat_timeout():
     global update
     debug_print("Heartbeat timeout")
-    update = True
+    for level in range(0,1):
+        update[level] = True
 heartbeat_timer = None 
 
 # Used by all to determine if we want to propose a new entry 
@@ -424,42 +465,61 @@ def stop_running():
     running = False
 
 # To time proposal turnaround time
-start_times = {}
+start_times = [{},{}]
 
 """
 Main loop
 """
 
 def main(args):
-    global update, propose_time, election_timer, heartbeat_timer, proposal_timer
+    global update, propose_time, heartbeat_timer, proposal_timer
     global running, start_times
+    global current_state, log, lastGlobalIndex, proposal_count
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
     counter = 0
-    current_state = args[2]
+    current_state[1] = args[2]
+    current_state[0] = args[3]
     
     while running:
-        global current_state, log
-        if current_state == "leader" and update:
-            update = False
-            update_everyone(False)
+        for level in range(0,1):
+            if current_state[level] == "leader" and update[level]:
+                update[level] = False
+                update_everyone(False, level)
         if propose_time and args[1] == "propose":
             propose_time = False
             entry = craft_pb2.LogEntry(data = str(counter), 
                                           term = currentTerm,
-                                          appendedBy = True,
+                                          appendedBy = False,
                                           proposer = this_id)
-            start_times[str(counter)] = time.time()
+            start_times[0][str(counter)] = time.time()
             propose_all(entry)
-            #if args[1] == "propose":
-            #    randTime = random.randint(200,500)
-            #    proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
-            #    proposal_timer.start()
+        if current_state[0] == "leader" and proposal_count >= 10:
+            proposal_count = 0
+            data = ','.join(log[0][lastGlobalIndex:].data)
+            lastGlobalIndex = len(log[0])
+
+            entry = craft_pb2.LogEntry(data = data, 
+                                          term = currentTerm,
+                                          appendedBy = False,
+                                          proposer = this_id)
+            start_times[1][data] = time.time()
+            propose_all(entry, 1)
         if current_state == "candidate":
             hold_election()
         counter += 1
         time.sleep(5/1000.0)
+
+    # Count number of log entries that got into global log
+    count = 0
+    for e in log[1]:
+        count += len(e.split(','))
+
+    # Save results
+    f=open("/home/ubuntu/"+this_id+".ind", "w")
+    f.write(str(count))
+    f.close()
 
 #def main():
 #    server_thread = threading.Thread(target=start_grpc_server,daemon=True)
