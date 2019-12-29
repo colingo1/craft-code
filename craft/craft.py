@@ -347,7 +347,7 @@ def update_everyone(heartbeat,level=0):
 
 def become_leader(level=0):
     global nextIndex, matchIndex, election_timer
-    election_timer.cancel()
+    #election_timer.cancel()
     nextIndex[level] = {member:len(log[level]) for member in members[level]}
     matchIndex[level] = {member:0 for member in members[level]}
 
