@@ -432,7 +432,7 @@ def main(args):
     counter = 0
     current_state = args[2]
     if current_state == "leader":
-        update = True
+        become_leader()
     
     while running:
         if current_state == "leader" and update:
