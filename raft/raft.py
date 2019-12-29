@@ -323,6 +323,7 @@ Main loop
 def main(args):
     global update, propose_time, election_timer, heartbeat_timer, proposal_timer
     global running, start_times, leaderId
+    global current_state, log
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
@@ -330,7 +331,6 @@ def main(args):
     current_state = args[2]
     
     while running:
-        global current_state, log
         if current_state == "leader" and update:
             update = False
             update_everyone(False)
