@@ -390,7 +390,7 @@ def election_timeout():
     global current_state
     debug_print("Election timeout")
     current_state = "candidate"
-election_timer = threading.Timer(150/100.0, election_timeout) 
+election_timer = threading.Timer(500/100.0, election_timeout) 
 election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
@@ -429,12 +429,14 @@ def main(args):
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
     counter = 0
+    current_state = args[2]
+    
     while running:
         global current_state, log
         if current_state == "leader" and update:
             update = False
             update_everyone(False)
-        if propose_time and len(args) == 2:
+        if propose_time and args[1] == "propose":
             propose_time = False
             entry = fraft_pb2.LogEntry(data = str(counter), 
                                           term = currentTerm,
@@ -442,10 +444,10 @@ def main(args):
                                           proposer = this_id)
             start_times[str(counter)] = time.time()
             propose_all(entry)
-            if args[1] == "propose":
-                randTime = random.randint(200,500)
-                proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
-                proposal_timer.start()
+            #if args[1] == "propose":
+            #    randTime = random.randint(200,500)
+            #    proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
+            #    proposal_timer.start()
         if current_state == "candidate":
             hold_election()
         counter += 1

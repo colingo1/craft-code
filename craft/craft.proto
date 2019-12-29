@@ -1,0 +1,70 @@
+// Copyright 2015 gRPC authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+// cRaft gRPC implementation
+service cRaft {
+  // Takes an ID (use shared IDKey message type) and returns k nodes with
+  // distance closest to ID requested
+  rpc RequestVote(VoteRequest) returns (Ack) {}
+
+  rpc AppendEntries(Entries) returns (Ack) {}
+
+  rpc ReceivePropose(Proposal) returns (Ack) {}
+
+  rpc Notified(Entry) returns (Ack) {}
+}
+
+message Entry{
+  LogEntry entry = 1;
+}
+
+message Proposal{
+  LogEntry entry = 1;
+  uint32 index = 2;
+  uint32 commitIndex = 3;
+  string proposer = 4;
+}
+
+message LogEntry{
+  int32 term = 1;
+  string data = 2;
+  bool appendedBy = 3;
+  string proposer = 4;
+}
+
+//an argument to the AppendEntries RPC
+message Entries{
+  int32 term = 1;
+  string leaderId = 2;
+  int32 prevLogIndex = 3;
+  int32 prevLogTerm = 4;
+  repeated LogEntry entries = 5;
+  int32 leaderCommit = 6;
+}
+
+//returned from both RequestVote and AppendEntries
+message Ack{
+  int32 term = 1;
+  bool success = 2;
+}
+
+//argument to the VoteRequest RPC
+message VoteRequest{
+  int32 term = 1;
+  string candidateId = 2;
+  int32 lastLogIndex = 3;
+  int32 lastLogTerm = 4;
+}
