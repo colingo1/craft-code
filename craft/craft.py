@@ -21,7 +21,7 @@ import craft_pb2_grpc
 DEBUG = True
 # Stable storage of all servers as defined in the cRaft paper.
 currentTerm = 0;
-log = [[craft_pb2.LogEntry(data = "NULL", term = 0, appendedBy = True)]
+log = [[craft_pb2.LogEntry(data = "NULL", term = 0, appendedBy = True)],
         [craft_pb2.LogEntry(data = "NULL", term = 0, appendedBy = True)]]
 votedFor = "";
 
@@ -363,7 +363,7 @@ def global_update_everyone(entry, index):
             with grpc.insecure_channel(server) as channel:
                 try:
                     stub = craft_pb2_grpc.cRaftStub(channel)
-                    response = stub.AppendEntry(craft_pb2.Entry(entry = entry, index = index)
+                    response = stub.AppendEntry(craft_pb2.Entry(entry = entry, index = index))
                     count += 1
                 except grpc.RpcError as e:
                     debug_print(e)
