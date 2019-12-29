@@ -57,7 +57,7 @@ instance_file.close()
 # Possible Entries structure
 # List of lists, length of log
 # Inner lists length of number of members
-possibleEntries = [[None]*len(members[0]), [None]*len(members[1])]
+possibleEntries = [[[None]*len(members[0])], [[None]*len(members[1])]]
 
 # Read in own host name
 my_port = 8100 
