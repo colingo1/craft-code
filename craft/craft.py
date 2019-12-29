@@ -504,7 +504,8 @@ def main(args):
             propose_all(entry)
         if current_state[0] == "leader" and proposal_count >= 10:
             proposal_count = 0
-            data = ','.join(log[0][lastGlobalIndex:].data)
+            global_entries = log[0][lastGlobalIndex:]
+            data = ','.join([x.data for x in global_entries])
             lastGlobalIndex = len(log[0])
 
             entry = craft_pb2.LogEntry(data = data, 
@@ -521,7 +522,8 @@ def main(args):
     # Count number of log entries that got into global log
     count = 0
     for e in log[1]:
-        count += len(e.split(','))
+        if e is not None:
+            count += len(e.split(','))
 
     # Save results
     f=open("/home/ubuntu/"+this_id+".ind", "w")
