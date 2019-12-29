@@ -92,6 +92,7 @@ def term_equal(log_index, term):
     return log[log_index].term == term
 
 def insert_log(entry, index, appendedBy, level):
+    global log
     while len(log[level]) <= index:
         log[level].append(None)
     entry.appendedBy = appendedBy
@@ -129,7 +130,7 @@ class cRaft(craft_pb2_grpc.cRaftServicer):
 
         debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
         if request.index >= len(log[level]) or log[level][request.index] == None:
-            insert_log(log[level], request.entry, request.index, False)
+            insert_log(request.entry, request.index, False, level)
             if level == 1:
                 global_update_everyone(request.entry, request.index)
 
@@ -178,7 +179,7 @@ class cRaft(craft_pb2_grpc.cRaftServicer):
         i = 1
         for entry in request.entries:
             index = request.prevLogIndex+i
-            insert_log(entry, index, level)
+            insert_log(entry, index, True, level)
             if level == 1:
                 global_update_everyone(entry, index)
             print("appended entry: {} to log in index {}".format(entry.data, index))
@@ -192,7 +193,7 @@ class cRaft(craft_pb2_grpc.cRaftServicer):
         return ack(True)
 
     def AppendEntry(self,request,context):
-        insert_log(request.entry, request.index, 1)
+        insert_log(request.entry, request.index, True, 1)
         return ack(True)
 
     def RequestVote(self,request,context):
@@ -214,12 +215,10 @@ class cRaft(craft_pb2_grpc.cRaftServicer):
         return ack(False)
 
     def Notified(self,request,context,level=0):
-        global start_times, propose_time, proposal_count
+        global start_times, propose_time
         t = start_times[level][request.entry.data]
         elapsed_time = time.time() - t
         propose_time = True
-        if level == 0:
-            proposal_count += 1
 
         return ack(True)
 
@@ -293,7 +292,7 @@ def notify(server, entry):
 
 
 def update_everyone(heartbeat,level=0):
-    global commitIndex, possibleEntries
+    global commitIndex, possibleEntries, proposal_count
 
     # Fast-track commit check
     k = commitIndex[level]+1
@@ -322,6 +321,8 @@ def update_everyone(heartbeat,level=0):
 
             # Update commitIndex and notify client
             commitIndex[level] = k
+            if level == 0:
+                proposal_count += 1
             notify(log[level][k].proposer, log[level][k])
             k += 1
         else: # Wait for this entry to be committed 
@@ -338,6 +339,8 @@ def update_everyone(heartbeat,level=0):
             new_commit_index = i
             # Notify proposer
             notify(log[level][i].proposer, log[level][i])
+            if level == 0:
+                proposal_count += 1
     commitIndex[level] = new_commit_index
 
     global heartbeat_timer
