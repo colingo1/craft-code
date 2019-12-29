@@ -431,6 +431,8 @@ def main(args):
     server_thread.start()
     counter = 0
     current_state = args[2]
+    if current_state == "leader":
+        update = True
     
     while running:
         if current_state == "leader" and update:
