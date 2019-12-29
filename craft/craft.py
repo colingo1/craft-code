@@ -86,8 +86,8 @@ def print_log():
 def ack(success):
     return craft_pb2.Ack(term = currentTerm, success = success)
 
-def term_equal(log_index, term):
-    if len(log)-1 < log_index:
+def term_equal(log_index, term, level=0):
+    if len(log[level])-1 < log_index:
         return False
     return log[log_index].term == term
 
@@ -186,7 +186,7 @@ class cRaft(craft_pb2_grpc.cRaftServicer):
             i += 1
 
         oldCommitIndex = commitIndex[level]
-        commitIndex[level] = min(request.leaderCommit, len(log) -1)
+        commitIndex[level] = min(request.leaderCommit, len(log[level]) -1)
         if commitIndex[level] > oldCommitIndex:
             debug_print("committing to {} at level {}".format(commitIndex[level], level))
 
@@ -250,8 +250,8 @@ def send_append_entries(server,heartbeat,level=0):
                 nextIndex[level][server] -=1
                 send_append_entries(server,heartbeat,level)
             if response.success and not heartbeat:
-                nextIndex[level][server] = len(log)
-                matchIndex[level][server] = len(log)-1
+                nextIndex[level][server] = len(log[level])
+                matchIndex[level][server] = len(log[level])-1
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
