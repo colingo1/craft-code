@@ -108,12 +108,12 @@ def propose(entry, index, p_server, level=0):
             if level == 0:
                 response = p_stub.ReceivePropose(craft_pb2.Proposal(entry = entry, 
                                                    index = index,
-                                                   commitIndex = commitIndex,
+                                                   commitIndex = commitIndex[level],
                                                    proposer = this_id), timeout=5)
             else:
                 response = p_stub.GlobalReceivePropose(craft_pb2.Proposal(entry = entry, 
                                                    index = index,
-                                                   commitIndex = commitIndex,
+                                                   commitIndex = commitIndex[level],
                                                    proposer = this_id), timeout=5)
         except grpc.RpcError as e:
             debug_print(e)
@@ -171,7 +171,7 @@ class cRaft(craft_pb2_grpc.cRaftServicer):
             currentTerm = request.term
             debug_print("Sending uncommitted entries to {}".format(request.leaderId))
             # This is a new leader, need to send uncommitted entries
-            for i in range(commitIndex+1, len(log[level])):
+            for i in range(commitIndex[level]+1, len(log[level])):
                 propose(log[level][i], i, request.leaderId, level)
         
         # Overwrite existing entries
@@ -184,10 +184,10 @@ class cRaft(craft_pb2_grpc.cRaftServicer):
             print("appended entry: {} to log in index {}".format(entry.data, index))
             i += 1
 
-        oldCommitIndex = commitIndex
+        oldCommitIndex = commitIndex[level]
         commitIndex[level] = min(request.leaderCommit, len(log) -1)
         if commitIndex[level] > oldCommitIndex:
-            debug_print("committing to {}".format(commitIndex))
+            debug_print("committing to {} at level {}".format(commitIndex[level], level))
 
         return ack(True)
 
@@ -239,9 +239,9 @@ def send_append_entries(server,heartbeat,level=0):
                 entries = log[level][prev_index+1:]
             debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
             if level == 0:
-                response = stub.AppendEntries(craft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
+                response = stub.AppendEntries(craft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex[level]), timeout=5)
             else:
-                response = stub.GlobalAppendEntries(craft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
+                response = stub.GlobalAppendEntries(craft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex[level]), timeout=5)
             if response.term > currentTerm:
                 global current_state
                 currentTerm = response.term
@@ -331,7 +331,7 @@ def update_everyone(heartbeat,level=0):
     for server in members[level]:
         send_append_entries(server,heartbeat,level)
     new_commit_index = commitIndex[level]
-    for i in range(commitIndex+1,len(log[level])):
+    for i in range(commitIndex[level]+1,len(log[level])):
         greater_index = [index for index in matchIndex[level].values() if index >= i]
         if len(greater_index) > len(members[level])/2:
             debug_print("committing to {}".format(i))
@@ -402,7 +402,7 @@ def hold_election():
 
 def propose_all(entry, level=0):
     global members, log, commitIndex, this_id, global_members
-    index = len(log)
+    index = len(log[level])
     for server in members[level]:
         with grpc.insecure_channel(server) as channel:
             stub = craft_pb2_grpc.cRaftStub(channel)
@@ -410,12 +410,12 @@ def propose_all(entry, level=0):
                 if level == 0:
                     response = stub.ReceivePropose(craft_pb2.Proposal(entry = entry, 
                                                index = index,
-                                               commitIndex = commitIndex,
+                                               commitIndex = commitIndex[level],
                                                proposer = this_id), timeout=5)
                 else:
                     response = stub.GlobalReceivePropose(craft_pb2.Proposal(entry = entry, 
                                                index = index,
-                                               commitIndex = commitIndex,
+                                               commitIndex = commitIndex[level],
                                                proposer = this_id), timeout=5)
             except grpc.RpcError as e:
                 debug_print(e)
