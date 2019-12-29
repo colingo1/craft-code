@@ -522,12 +522,11 @@ def main(args):
     # Count number of log entries that got into global log
     count = 0
     for e in log[1]:
-        if e is not None:
-            count += len(e.split(','))
+        count += len(e.data.split(','))
 
     # Save results
     f=open("/home/ubuntu/"+this_id+".ind", "w")
-    f.write(str(count))
+    f.write(str(count-1))
     f.close()
 
 #def main():
