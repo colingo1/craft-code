@@ -133,7 +133,7 @@ class fRaft(fraft_pb2_grpc.fRaftServicer):
         if first:
             first = False
             propose_time = True
-            run = threading.Timer(40, stop_running)
+            run = threading.Timer(60*3, stop_running)
             run.start()
 
 
@@ -390,7 +390,7 @@ def election_timeout():
     global current_state
     debug_print("Election timeout")
     current_state = "candidate"
-election_timer = threading.Timer(500/100.0, election_timeout) 
+election_timer = threading.Timer(1000/100.0, election_timeout) 
 election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
@@ -440,7 +440,7 @@ def main(args):
             propose_time = False
             entry = fraft_pb2.LogEntry(data = str(counter), 
                                           term = currentTerm,
-                                          appendedBy = True,
+                                          appendedBy = False,
                                           proposer = this_id)
             start_times[str(counter)] = time.time()
             propose_all(entry)
