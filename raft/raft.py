@@ -353,6 +353,11 @@ def main(args):
         time.sleep(5/1000.0)
 
 
+    # Count number of log entries that got into global log
+    # Save results
+    f=open("/home/ubuntu/"+this_id+".ind", "w")
+    f.write(str(len(log)-1))
+    f.close()
 
 #def main():
 #    server_thread = threading.Thread(target=start_grpc_server,daemon=True)
