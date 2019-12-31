@@ -116,10 +116,11 @@ class Raft(raft_pb2_grpc.RaftServicer):
             return ack(False)
         leaderId = request.leaderId
         if leaderId != this_id:
-            election_timer.cancel()
-            randTime = random.randint(250,500)
-            election_timer = threading.Timer(randTime/100.0, election_timeout) 
-            election_timer.start()
+            pass
+            #election_timer.cancel()
+            #randTime = random.randint(250,500)
+            #election_timer = threading.Timer(randTime/100.0, election_timeout) 
+            #election_timer.start()
         if request.term > currentTerm:
             global current_state
             current_state = "follower"
@@ -231,7 +232,7 @@ def update_everyone(heartbeat):
 
 def become_leader():
     global nextIndex, matchIndex, election_timer
-    election_timer.cancel()
+    #election_timer.cancel()
 
     nextIndex = {member:len(log) for member in members}
     matchIndex = {member:0 for member in members}
@@ -284,12 +285,12 @@ Timer stop functions
 """
 
 # Used in followers to decide if leader has failed 
-def election_timeout():
-    global current_state
-    debug_print("Election timeout")
-    current_state = "candidate"
-election_timer = threading.Timer(1000/100.0, election_timeout) 
-election_timer.start()
+#def election_timeout():
+#    global current_state
+#    debug_print("Election timeout")
+#    current_state = "candidate"
+#election_timer = threading.Timer(1000/100.0, election_timeout) 
+#election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
 update = False
