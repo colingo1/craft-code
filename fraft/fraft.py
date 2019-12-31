@@ -364,12 +364,7 @@ def propose_all(entry):
     index = len(log)
     processes = []
     for server in members:
-        p = Process(target=propose, args=(entry,index,server))
-        p.start()
-        processes.append(p)
-
-    for p in processes:
-        p.join()
+        propose(entry,index,server)
 
 def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))
