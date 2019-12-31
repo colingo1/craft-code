@@ -14,6 +14,7 @@ from concurrent import futures
 import math
 import time
 import random
+from multiprocessing import Process
 
 import fraft_pb2
 import fraft_pb2_grpc
@@ -361,17 +362,14 @@ def hold_election():
 def propose_all(entry):
     global members, log, commitIndex, this_id
     index = len(log)
+    processes = []
     for server in members:
-        with grpc.insecure_channel(server) as channel:
-            stub = fraft_pb2_grpc.fRaftStub(channel)
-            try:
-                response = stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
-                                               index = index,
-                                               commitIndex = commitIndex,
-                                               proposer = this_id), timeout=5)
-            except grpc.RpcError as e:
-                debug_print(e)
-                debug_print("couldn't connect to {}".format(server))
+        p = Process(target=propose, args=(entry,index,server))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
 
 def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))
