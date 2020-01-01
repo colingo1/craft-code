@@ -344,6 +344,7 @@ def main(args):
                                           term = currentTerm,
                                           proposer = this_id)
             start_times[str(counter)] = time.time()
+            debug_print("Proposing entry {} to {}".format((entry.data,leaderId))
             propose(entry, leaderId)
             #if args[1] == "propose":
             #    randTime = random.randint(200,500)
