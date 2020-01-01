@@ -385,7 +385,7 @@ Timer stop functions
 #    debug_print("Election timeout")
 #    current_state = "candidate"
 #election_timer = threading.Timer(1000/100.0, election_timeout) 
-election_timer.start()
+#election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
 update = False
