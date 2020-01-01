@@ -351,7 +351,6 @@ def main(args):
         if current_state == "candidate":
             hold_election()
         counter += 1
-        time.sleep(5/1000.0)
 
 
     # Count number of log entries that got into global log
