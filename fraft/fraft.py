@@ -304,7 +304,7 @@ def update_entries():
             break
 
     global poss_timer
-    poss_timer = threading.Timer(50/1000.0, poss_timeout) 
+    poss_timer = threading.Timer(5/1000.0, poss_timeout) 
     poss_timer.start()
 
 def update_everyone(heartbeat):
