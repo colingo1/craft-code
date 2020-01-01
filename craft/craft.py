@@ -333,7 +333,7 @@ def update_entries():
     poss_timer.start()
 
 def update_everyone(heartbeat,level=0):
-    global commitIndex, possibleEntries
+    global commitIndex, possibleEntries, proposal_count
 
     # Update followers 
     for server in members[level]:
