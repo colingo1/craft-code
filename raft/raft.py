@@ -102,12 +102,6 @@ class Raft(raft_pb2_grpc.RaftServicer):
         global log, commitIndex, currentTerm, leaderId
         global election_timer, first, run, propose_time
 
-        if first:
-            first = False
-            propose_time = True
-            run = threading.Timer(60*3, stop_running)
-            run.start()
-
 
         debug_print("Received AppendEntries from {}".format(request.leaderId))
         if request.term < currentTerm:
@@ -115,6 +109,13 @@ class Raft(raft_pb2_grpc.RaftServicer):
         if not term_equal(request.prevLogIndex, request.prevLogTerm):
             return ack(False)
         leaderId = request.leaderId
+
+        if first:
+            first = False
+            propose_time = True
+            run = threading.Timer(60*3, stop_running)
+            run.start()
+
         if leaderId != this_id:
             pass
             #election_timer.cancel()
