@@ -270,7 +270,7 @@ def notify(server, entry):
             debug_print("couldn't connect to {}".format(server))
 
 
-def update_everyone(heartbeat):
+def update_entries():
     global commitIndex, possibleEntries
 
     # Fast-track commit check
@@ -302,6 +302,13 @@ def update_everyone(heartbeat):
             k += 1
         else: # Wait for this entry to be committed 
             break
+
+    global poss_timer
+    poss_timer = threading.Timer(50/1000.0, poss_timeout) 
+    poss_timer.start()
+
+def update_everyone(heartbeat):
+    global commitIndex, possibleEntries
 
     # Update followers 
     for server in members:
@@ -388,6 +395,13 @@ Timer stop functions
 #election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
+update_poss = False
+def poss_timeout():
+    global update
+    update_poss = True
+poss_timer = None 
+
+# Used by leader to determine if it is time to send out heartbeat
 update = False
 def heartbeat_timeout():
     global update
@@ -418,7 +432,7 @@ Main loop
 
 def main(args):
     global update, propose_time, election_timer, heartbeat_timer, proposal_timer
-    global running, start_times
+    global running, start_times, poss_timer
     global current_state, log
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
@@ -429,6 +443,9 @@ def main(args):
         become_leader()
     
     while running:
+        if current_state == "leader" and update_poss:
+            update_poss = False
+            update_entries()
         if current_state == "leader" and update:
             update = False
             update_everyone(False)
