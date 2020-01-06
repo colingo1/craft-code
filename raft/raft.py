@@ -53,7 +53,7 @@ class Ack():
         self.success = success;
 
 class VoteRequest():
-    def __init__(self, term, candidateId, lastLogIndex, lastLogTerm)
+    def __init__(self, term, candidateId, lastLogIndex, lastLogTerm):
         self.term = term;
         self.candidateId = candidateId;
         self.lastLogIndex = lastLogIndex;
@@ -62,7 +62,7 @@ class VoteRequest():
 DEBUG = True
 # Stable storage of all servers as defined in the Raft paper.
 currentTerm = 0;
-log = [LogEntry(data = "NULL", term = 0)];
+log = [LogEntry(data = "NULL", term = 0, proposer="")];
 votedFor = "";
 
 # Volatile state of all servers
@@ -81,13 +81,13 @@ instance_file = open("instances.txt", 'r')
 members = []
 lines = instance_file.readlines()
 for line in lines:
-    members.append((int(line[0:-1]),8100)) 
+    members.append((line[0:-1],8100)) 
 instance_file.close()
 
 # Read in own host name
 my_port = 8100 
 host_file = open("host_name.txt", 'r')
-this_id = (int(host_file.readlines()[0][0:-1]),8100)
+this_id = (host_file.readlines()[0][0:-1],8100)
 host_file.close()
 
 # Create socket for listening and sending
