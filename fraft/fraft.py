@@ -459,7 +459,7 @@ Timer stop functions
 #election_timer.start()
 
 # Used by leader to determine if it is time to send out heartbeat
-update_poss = False
+update_poss = True
 def poss_timeout():
     global update
     update_poss = True
@@ -479,7 +479,7 @@ def propose_timeout():
     global propose_time
     debug_print("Proposal timeout")
     propose_time = True
-repropose_log = []
+repropose_log = {}
 
 # Run experiment for set amount of time
 running = True
