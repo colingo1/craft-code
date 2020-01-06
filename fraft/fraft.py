@@ -10,25 +10,70 @@ import sys
 import os
 import grpc
 import threading
+import multiprocessing
 from concurrent import futures
 import math
 import time
 import random
-from multiprocessing import Process
+import socket
+import pickle
 
-import fraft_pb2
-import fraft_pb2_grpc
+class Message():
+    def __init__(self, func, obj):
+        self.func = func
+        self.obj = obj
+
+class LogEntry():
+    def __init__(self, term, data, appendedBy, proposer):
+        self.term = term;
+        self.data = data;
+        self.appendedBy = appendedBy
+        self.proposer = proposer;
+
+class Entry():
+    def __init__(self, entry):
+        self.entry = entry
+
+class Proposal():
+    def __init__(self, entry, index, commitIndex, proposer):
+        self.entry = entry;
+        self.index = index
+        self.commitIndex = commitIndex
+        self.proposer = proposer;
+
+class Entries():
+    def __init__(self, term, leaderId, prevLogIndex,
+            prevLogTerm, entries, leaderCommit):
+        self.term = term;
+        self.leaderId = leaderId;
+        self.prevLogIndex = prevLogIndex;
+        self.prevLogTerm = prevLogTerm;
+        self.entries = entries;
+        self.leaderCommit = leaderCommit;
+
+class Ack():
+    def __init__(self, term, success, server):
+        self.term = term;
+        self.success = success;
+        self.server = server
+
+class VoteRequest():
+    def __init__(self, term, candidateId, lastLogIndex, lastLogTerm):
+        self.term = term;
+        self.candidateId = candidateId;
+        self.lastLogIndex = lastLogIndex;
+        self.lastLogTerm = lastLogTerm;
 
 DEBUG = True
 # Stable storage of all servers as defined in the fRaft paper.
 currentTerm = 0;
-log = [fraft_pb2.LogEntry(data = "NULL", term = 0, appendedBy = True)];
+log = [LogEntry(data = "NULL", term = 0, appendedBy = True, proposer="")];
 votedFor = "";
 
 # Volatile state of all servers
 commitIndex = 0;
 lastApplied = 0;
-leaderId = "";
+leaderId = None;
 
 # Volatile state of leaders
 nextIndex = {}
@@ -42,7 +87,7 @@ instance_file = open("instances.txt", 'r')
 members = []
 lines = instance_file.readlines()
 for line in lines:
-    members.append(line[0:-1]+":8100") 
+    members.append((line[0:-1],8100)) 
 instance_file.close()
 
 # Possible Entries structure
@@ -53,10 +98,15 @@ possibleEntries = [[None]*len(members)]
 # Read in own host name
 my_port = 8100 
 host_file = open("host_name.txt", 'r')
-this_id = host_file.readlines()[0][0:-1]+":8100"
+this_id = (host_file.readlines()[0][0:-1],8100)
 host_file.close()
 
-os.system("touch /home/ubuntu/"+this_id+".txt")
+# Create socket for listening and sending
+sock = socket.socket(socket.AF_INET, # Internet
+                     socket.SOCK_DGRAM) # UDP	
+sock.bind(this_id)
+
+os.system("touch /home/ubuntu/"+this_id[0]+".txt")
 
 first = True
 
@@ -74,8 +124,12 @@ def print_log():
         
         print("{}\t{}\t{}".format(i,log[i].term,log[i].data))
 
-def ack(success):
-    return fraft_pb2.Ack(term = currentTerm, success = success)
+def ack(success, server):
+    global sock
+    new_message = Message("ACK", Ack(term = currentTerm, 
+                    success = success, server = this_id))
+    message_string = pickle.dumps(new_message)
+    sock.sendto(message_string, server)
 
 def term_equal(log_index, term):
     if len(log)-1 < log_index:
@@ -89,152 +143,150 @@ def insert_log(entry, index, appendedBy):
     entry.appendedBy = appendedBy
     log[index] = entry
 
-def propose(entry, index, p_server): 
+def propose(entry, index, server): 
+    global sock
     global commitIndex, this_id
-    if p_server == "":
+    if server is None:
         return
-    with grpc.insecure_channel(p_server) as p_channel:
-        try:
-            p_stub = fraft_pb2_grpc.fRaftStub(p_channel)
-            debug_print("Sending Proposal to {} with index {}".format(p_server,index))
-            response = p_stub.ReceivePropose(fraft_pb2.Proposal(entry = entry, 
-                                                   index = index,
-                                                   commitIndex = commitIndex,
-                                                   proposer = this_id), timeout=5)
-        except grpc.RpcError as e:
-            debug_print(e)
-            debug_print("couldn't connect to {}".format(p_server))
+    debug_print("Sending Proposal to {}".format(server))
+    new_message = Message("ReceivePropose", Proposal(entry = entry, 
+                                           index = index,
+                                           commitIndex = commitIndex,
+                                           proposer = this_id))
+    message_string = pickle.dumps(new_message)
+    sock.sendto(message_string, server)
 
-class fRaft(fraft_pb2_grpc.fRaftServicer):
+def ReceivePropose(request):
+    global log, possibleEntries, members, leaderId, current_state, nextIndex
 
-    def ReceivePropose(self,request,context):
-        global log, possibleEntries, members, leaderId, current_state
+    debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
+    if request.index >= len(log) or log[request.index] == None:
+        insert_log(request.entry, request.index, False)
 
-        debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
-        if request.index >= len(log) or log[request.index] == None:
-            insert_log(request.entry, request.index, False)
+    if current_state == "leader":
+        # Add empty entries to log and possibleEntries
+        while request.index >= len(possibleEntries):
+            possibleEntries.append([None]*len(members))
 
-        if current_state == "leader":
-            # Add empty entries to log and possibleEntries
-            while request.index >= len(possibleEntries):
-                possibleEntries.append([None]*len(members))
+        # Add proposer's vote to possibleEntries
+        proposerIndex = members.index(request.proposer)
+        possibleEntries[request.index][proposerIndex] = request.entry
+        nextIndex[request.proposer] = request.commitIndex+1
+    else:
+        propose(log[request.index], request.index, leaderId)
 
-            # Add proposer's vote to possibleEntries
-            proposerIndex = members.index(request.proposer)
-            possibleEntries[request.index][proposerIndex] = request.entry
-            nextIndex[request.proposer] = request.commitIndex+1
-        else:
-            propose(log[request.index], request.index, leaderId)
-        return ack(True)
+def AppendEntries(request):
+    global log, commitIndex, currentTerm, leaderId
+    global election_timer, first, run, propose_time
 
-    def AppendEntries(self,request,context):
-        global log, commitIndex, currentTerm, leaderId
-        global election_timer, first, run, propose_time
-
-        if first:
-            first = False
-            propose_time = True
-            run = threading.Timer(60*3, stop_running)
-            run.start()
-
-
-        debug_print("Received AppendEntries from {}".format(request.leaderId))
-        if request.term < currentTerm:
-            return ack(False)
-        #if not term_equal(request.prevLogIndex, request.prevLogTerm):
-        #    return ack(False)
-        leaderId = request.leaderId
-        if leaderId != this_id:
-            pass
-            #election_timer.cancel()
-            #randTime = random.randint(250,500)
-            #election_timer = threading.Timer(randTime/100.0, election_timeout) 
-            #election_timer.start()
-
-        if request.term > currentTerm:
-            global current_state
-            current_state = "follower"
-            currentTerm = request.term
-            debug_print("Sending uncommitted entries to {}".format(request.leaderId))
-            # This is a new leader, need to send uncommitted entries
-            for i in range(commitIndex+1, len(log)):
-                propose(log[i], i, request.leaderId)
-        
-        # Overwrite existing entries
-        i = 1
-        for entry in request.entries:
-            index = request.prevLogIndex+i
-            insert_log(entry, index, True)
-            print("appended entry: {} to log in index {}".format(entry.data, index))
-            i += 1
-
-        oldCommitIndex = commitIndex
-        commitIndex = min(request.leaderCommit, len(log) -1)
-        if commitIndex > oldCommitIndex:
-            debug_print("committing to {}".format(commitIndex))
-
-        return ack(True)
-
-
-    def RequestVote(self,request,context):
-        global currentTerm, commitIndex
-        if request.term < currentTerm:
-            return ack(False)
-        if request.term > currentTerm:
-            global current_state
-            current_state = "follower"
-            currentTerm = request.term
-
-        # If haven't voted yet, and at least as up-to-date as self, vote for
-        if((votedFor == "" or votedFor == request.candidateId) and 
-             (request.lastLogIndex >= commitIndex)):
-                debug_print("Voted for {}".format(request.candidateId))
-                return ack(True)
-
-        # Do not vote for
-        return ack(False)
-
-    def Notified(self,request,context):
-        global start_times, propose_time
-        t = start_times[request.entry.data]
-        elapsed_time = time.time() - t
-        f=open("/home/ubuntu/"+this_id+".txt", "a+")
-        f.write(str(elapsed_time)+"\n")
-        f.close()
+    if first:
+        first = False
         propose_time = True
-        return ack(True)
+        run = threading.Timer(60*3, stop_running)
+        run.start()
 
 
-def send_append_entries(server,heartbeat):
-    global nextIndex, matchIndex, commitIndex, currentTerm
-    with grpc.insecure_channel(server) as channel:
-        try:
-            stub = fraft_pb2_grpc.fRaftStub(channel)
-            prev_index = nextIndex[server]-1
-            prev_term = 0 
-            if len(log) > prev_index and prev_index >= 0:
-                prev_term = log[prev_index].term 
-            if heartbeat:
-                entries = []
-            else:
-                entries = log[prev_index+1:]
-            debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
-            response = stub.AppendEntries(fraft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
-            if response.term > currentTerm:
-                global current_state
-                currentTerm = response.term
-                current_state = "follower"
-                return False
-            if not response.success:
-                nextIndex[server] -=1
-                send_append_entries(server,heartbeat)
-            if response.success and not heartbeat:
-                nextIndex[server] = len(log)
-                matchIndex[server] = len(log)-1
-        except grpc.RpcError as e:
-            debug_print(e)
-            debug_print("couldn't connect to {}".format(server))
-    return matchIndex[server]
+    debug_print("Received AppendEntries from {}".format(request.leaderId))
+    if request.term < currentTerm:
+        return ack(False)
+    #if not term_equal(request.prevLogIndex, request.prevLogTerm):
+    #    return ack(False)
+    leaderId = request.leaderId
+    #if leaderId != this_id:
+        #election_timer.cancel()
+        #randTime = random.randint(250,500)
+        #election_timer = threading.Timer(randTime/100.0, election_timeout) 
+        #election_timer.start()
+
+    if request.term > currentTerm:
+        global current_state
+        current_state = "follower"
+        currentTerm = request.term
+        debug_print("Sending uncommitted entries to {}".format(request.leaderId))
+        # This is a new leader, need to send uncommitted entries
+        for i in range(commitIndex+1, len(log)):
+            propose(log[i], i, request.leaderId)
+    
+    # Overwrite existing entries
+    i = 1
+    for entry in request.entries:
+        index = request.prevLogIndex+i
+        insert_log(entry, index, True)
+        print("appended entry: {} to log in index {}".format(entry.data, index))
+        i += 1
+
+    oldCommitIndex = commitIndex
+    commitIndex = min(request.leaderCommit, len(log) -1)
+    if commitIndex > oldCommitIndex:
+        debug_print("committing to {}".format(commitIndex))
+
+    ack(True, request.leaderId)
+
+
+#def RequestVote(request):
+#    global currentTerm, commitIndex
+#    if request.term < currentTerm:
+#        return ack(False)
+#    if request.term > currentTerm:
+#        global current_state
+#        current_state = "follower"
+#        currentTerm = request.term
+#
+#    # If haven't voted yet, and at least as up-to-date as self, vote for
+#    if((votedFor == "" or votedFor == request.candidateId) and 
+#         (request.lastLogIndex >= commitIndex)):
+#            debug_print("Voted for {}".format(request.candidateId))
+#            return ack(True)
+#
+#    # Do not vote for
+#    return ack(False)
+
+def Notified(request):
+    global start_times, propose_time
+    t = start_times[request.entry.data]
+    elapsed_time = time.time() - t
+    f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
+    f.write(str(elapsed_time)+"\n")
+    f.close()
+    propose_time = True
+
+def send_append_entries(server):
+    global nextIndex, matchIndex, commitIndex, currentTerm, log
+    global sock
+    prev_index = nextIndex[server]-1
+    prev_term = 0
+    if len(log) > prev_index and prev_index >= 0:
+        prev_term = log[prev_index].term
+    entries = log[prev_index+1:]
+    debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
+    new_message = Message("AppendEntries", Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex))
+    message_string = pickle.dumps(new_message)
+    sock.sendto(message_string, server)
+
+def AppendEntriesResp(response):
+    global nextIndex, matchIndex, commitIndex, currentTerm, log
+    server = response.server
+    if response.term > currentTerm:
+        global current_state
+        currentTerm = response.term
+        current_state = "follower"
+        return
+    if not response.success:
+        nextIndex[server] -=1
+        send_append_entries(server)
+    if response.success:
+        nextIndex[server] = len(log)
+        matchIndex[server] = len(log)-1
+
+    new_commit_index = commitIndex
+    for i in range(commitIndex+1,len(log)):
+        greater_index = [index for index in matchIndex.values() if index >= i]
+        if len(greater_index) > len(members)/2:
+            debug_print("committing to {}".format(i))
+            new_commit_index = i
+            # Notify proposer
+            notify(log[i].proposer, log[i])
+    commitIndex = new_commit_index
 
 def most_frequent(List): 
     List = [x for x in List if x is not None]
@@ -258,17 +310,13 @@ def most_frequent(List):
     return(num, counter) 
 
 def notify(server, entry):
-    if server == "":
+    global sock
+    if server is None:
         return
-    with grpc.insecure_channel(server) as channel:
-        try:
-            stub = fraft_pb2_grpc.fRaftStub(channel)
-            debug_print("Notifying {}".format(server))
-            response = stub.Notified(fraft_pb2.Entry(entry = entry), timeout=5)
-        except grpc.RpcError as e:
-            debug_print(e)
-            debug_print("couldn't connect to {}".format(server))
-
+    debug_print("Notifying {}".format(server))
+    new_message = Message("Notified", Entry(entry = entry))
+    message_string = pickle.dumps(new_message)
+    sock.sendto(message_string, server)
 
 def update_entries():
     global commitIndex, possibleEntries
@@ -307,21 +355,12 @@ def update_entries():
     poss_timer = threading.Timer(5/1000.0, poss_timeout) 
     poss_timer.start()
 
-def update_everyone(heartbeat):
+def update_everyone():
     global commitIndex, possibleEntries
 
     # Update followers 
     for server in members:
-        send_append_entries(server,heartbeat)
-    new_commit_index = commitIndex
-    for i in range(commitIndex+1,len(log)):
-        greater_index = [index for index in matchIndex.values() if index >= i]
-        if len(greater_index) > len(members)/2:
-            debug_print("committing to {}".format(i))
-            new_commit_index = i
-            # Notify proposer
-            notify(log[i].proposer, log[i])
-    commitIndex = new_commit_index
+        send_append_entries(server)
 
     global heartbeat_timer
     heartbeat_timer = threading.Timer(50/100.0, heartbeat_timeout) 
@@ -331,41 +370,42 @@ def update_everyone(heartbeat):
 def become_leader():
     global nextIndex, matchIndex, election_timer
     #election_timer.cancel()
+
     nextIndex = {member:len(log) for member in members}
     matchIndex = {member:0 for member in members}
 
-    update_everyone(True)
+    update_everyone()
 
-def hold_election():
-    global currentTerm,matchIndex,current_state,commitIndex
-    currentTerm += 1
-    votedFor = this_id
-    vote_count = 1
-    for server in members:
-        if server != this_id:
-            with grpc.insecure_channel(server) as channel:
-                stub = fraft_pb2_grpc.fRaftStub(channel)
-                try:
-                    response = stub.RequestVote(fraft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term), timeout=5)
-                    if response.success:
-                        vote_count +=1
-                        debug_print("received vote from {}".format(server))
-                    if response.term > currentTerm:
-                        current_state = "follower"
-                        currentTerm = response.term
-                except grpc.RpcError as e:
-                    debug_print(e)
-                    debug_print("couldn't connect to {}".format(server))
-    if vote_count >= len(members)/2:
-        current_state = "leader"
-        become_leader()
-    else:
-        debug_print("lost election")
-        current_state = "follower"
-        global election_timer
-        randTime = random.randint(250,500)
-        election_timer = threading.Timer(randTime/100.0, election_timeout) 
-        election_timer.start()
+#def hold_election():
+#    global currentTerm,matchIndex,current_state,commitIndex
+#    currentTerm += 1
+#    votedFor = this_id
+#    vote_count = 1
+#    for server in members:
+#        if server != this_id:
+#            with grpc.insecure_channel(server) as channel:
+#                stub = fraft_pb2_grpc.fRaftStub(channel)
+#                try:
+#                    response = stub.RequestVote(fraft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term), timeout=5)
+#                    if response.success:
+#                        vote_count +=1
+#                        debug_print("received vote from {}".format(server))
+#                    if response.term > currentTerm:
+#                        current_state = "follower"
+#                        currentTerm = response.term
+#                except grpc.RpcError as e:
+#                    debug_print(e)
+#                    debug_print("couldn't connect to {}".format(server))
+#    if vote_count >= len(members)/2:
+#        current_state = "leader"
+#        become_leader()
+#    else:
+#        debug_print("lost election")
+#        current_state = "follower"
+#        global election_timer
+#        randTime = random.randint(250,500)
+#        election_timer = threading.Timer(randTime/100.0, election_timeout) 
+#        election_timer.start()
 
 def propose_all(entry):
     global members, log, commitIndex, this_id
@@ -374,12 +414,36 @@ def propose_all(entry):
     for server in members:
         propose(entry,index,server)
 
+def receive_message(data):
+    message = pickle.loads(data)
+    if message.func == "ReceivePropose":
+        ReceivePropose(message.obj)
+    elif message.func == "AppendEntries":
+        AppendEntries(message.obj)
+    elif message.func == "ACK":
+        AppendEntriesResp(message.obj)
+    #elif message.func == "RequestVote":
+    #    RequestVote(message.obj)
+    elif message.func == "Notified":
+        Notified(message.obj)
+
 def start_grpc_server():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))
-    fraft_pb2_grpc.add_fRaftServicer_to_server(fRaft(), server)
-    server.add_insecure_port('[::]:{}'.format(my_port))
-    server.start()
-    server.wait_for_termination()
+    global sock
+    while running:
+            data, addr = sock.recvfrom(1048576) # buffer size is 2^20 bytes
+            # To have a way to safely quit, quit message breaks loop
+            try:
+                if data.decode('UTF-8') == "quit":
+                    break
+            except UnicodeDecodeError:
+                pass
+
+            # Make thread for receive handling
+            #receive_thread = multiprocessing.Process(
+            receive_thread = threading.Thread(
+                    target=receive_message,
+                    args=(data,))
+            receive_thread.start()
 
 
 """
