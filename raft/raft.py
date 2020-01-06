@@ -18,27 +18,27 @@ import random
 import socket
 
 class message():
-    __init__(self, func, obj):
+    def __init__(self, func, obj):
         self.func = func
         self.obj = obj
 
 class LogEntry():
-    __init__(self, term, data, proposer):
+    def __init__(self, term, data, proposer):
         self.term = term;
         self.data = data;
         self.proposer = proposer;
 
 class Entry():
-    __init__(self, entry):
+    def __init__(self, entry):
         self.entry = entry
 
 class Proposal():
-    __init__(self, entry, proposer):
+    def __init__(self, entry, proposer):
         self.entry = entry;
         self.proposer = proposer;
 
 class Entries():
-    __init__(self, term, leaderId, prevLogIndex,
+    def __init__(self, term, leaderId, prevLogIndex,
             prevLogTerm, entries, leaderCommit):
         self.term = term;
         self.leaderId = leaderId;
@@ -48,12 +48,12 @@ class Entries():
         self.leaderCommit = leaderCommit;
 
 class Ack():
-    __init__(self, term, success):
+    def __init__(self, term, success):
         self.term = term;
         self.success = success;
 
 class VoteRequest():
-    __init__(self, term, candidateId, lastLogIndex, lastLogTerm)
+    def __init__(self, term, candidateId, lastLogIndex, lastLogTerm)
         self.term = term;
         self.candidateId = candidateId;
         self.lastLogIndex = lastLogIndex;
