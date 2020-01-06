@@ -183,22 +183,12 @@ def send_append_entries(server,heartbeat):
             else:
                 entries = log[prev_index+1:]
             debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
-            response = stub.AppendEntries(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=TIMEOUT)
-            if response.term > currentTerm:
-                global current_state
-                currentTerm = response.term
-                current_state = "follower"
-                return False
-            if not response.success:
-                nextIndex[server] -=1
-                send_append_entries(server,heartbeat)
-            if response.success and not heartbeat:
-                nextIndex[server] = len(log)
-                matchIndex[server] = len(log)-1
+            response = stub.AppendEntries.future(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=TIMEOUT)
+            return response
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
-    return matchIndex[server]
+    return None
 
 
 def notify(server, entry):
@@ -220,13 +210,22 @@ def update_everyone(heartbeat):
     # Send append entries in parallel
     processes = []
     for i in range(0,len(members)):
-        port = ":"+str(8100+i+1)
-        p = multiprocessing.Process(target=send_append_entries, 
-                args=(members[i],heartbeat))
-        p.start()
-        processes.append(p)
+        processes.append(send_append_entries(members[i],heartbeat))
     for p in processes:
-        p.join()
+        response = p.result()
+        if response is None:
+            continue
+        if response.term > currentTerm:
+            global current_state
+            currentTerm = response.term
+            current_state = "follower"
+            return False
+        if not response.success:
+            nextIndex[server] -=1
+            send_append_entries(server,heartbeat)
+        if response.success and not heartbeat:
+            nextIndex[server] = len(log)
+            matchIndex[server] = len(log)-1
 
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
