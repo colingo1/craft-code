@@ -221,7 +221,11 @@ def update_everyone(heartbeat):
             continue
         processes.append(send_append_entries(members[i],heartbeat,channels[i]))
     for p in processes:
-        response = p.result()
+        try:
+            response = p.result()
+        except grpc.RpcError as e:
+            debug_print(e)
+            continue
         if response is None:
             continue
         if response.term > currentTerm:
