@@ -211,6 +211,8 @@ def update_everyone(heartbeat):
     processes = []
     channels = []
     for server in members:
+        if server == this_id:
+            channels.append(None)
         try:
             channels.append(grpc.insecure_channel(server))
         except grpc.RpcError as e:
