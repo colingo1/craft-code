@@ -16,8 +16,9 @@ import math
 import time
 import random
 import socket
+import pickle
 
-class message():
+class Message():
     def __init__(self, func, obj):
         self.func = func
         self.obj = obj
