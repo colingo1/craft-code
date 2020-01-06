@@ -332,7 +332,8 @@ def start_grpc_server():
                 pass
 
             # Make thread for receive handling
-            receive_thread = multiprocessing.Process(
+            #receive_thread = multiprocessing.Process(
+            receive_thread = threading.Thread(
                     target=receive_message,
                     args=(data,))
             receive_thread.start()
