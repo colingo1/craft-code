@@ -248,7 +248,7 @@ def Notified(request):
     f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
     f.write(str(elapsed_time)+"\n")
     f.close()
-    propose_time = True
+    #propose_time = True
 
 def send_append_entries(server):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
@@ -521,10 +521,8 @@ def main(args):
                                           proposer = this_id)
             start_times[str(counter)] = time.time()
             propose_all(entry)
-            #if args[1] == "propose":
-            #    randTime = random.randint(200,500)
-            #    proposal_timer = threading.Timer(randTime/100.0, propose_timeout) 
-            #    proposal_timer.start()
+            proposal_timer = threading.Timer(1, propose_timeout) 
+            proposal_timer.start()
         if current_state == "candidate":
             hold_election()
         counter += 1
