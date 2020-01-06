@@ -49,9 +49,10 @@ class Entries():
         self.leaderCommit = leaderCommit;
 
 class Ack():
-    def __init__(self, term, success):
+    def __init__(self, term, success, server):
         self.term = term;
         self.success = success;
+        self.server = server
 
 class VoteRequest():
     def __init__(self, term, candidateId, lastLogIndex, lastLogTerm):
@@ -116,7 +117,8 @@ def print_log():
 
 def ack(success, server):
     global sock
-    new_message = Message("ACK", Ack(term = currentTerm, success = success))
+    new_message = Message("ACK", Ack(term = currentTerm, 
+                    success = success, server = this_id))
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
@@ -224,6 +226,7 @@ def send_append_entries(server):
 
 def AppendEntriesResp(response):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
+    server = response.server
     if response.term > currentTerm:
         global current_state
         currentTerm = response.term
