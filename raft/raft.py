@@ -282,7 +282,7 @@ def hold_election():
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
         election_timer.start()
 
-def start_grpc_server(port):
+def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=20))
     raft_pb2_grpc.add_RaftServicer_to_server(Raft(), server)
     for i in range(0,len(members)+i):
