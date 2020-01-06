@@ -213,11 +213,7 @@ def update_everyone(heartbeat):
     for server in members:
         if server == this_id:
             channels.append(None)
-        try:
-            channels.append(grpc.insecure_channel(server))
-        except grpc.RpcError as e:
-            debug_print(e)
-            channels.append(None)
+        channels.append(grpc.insecure_channel(server))
     for i in range(0,len(members)):
         if channels[i] == None:
             continue
@@ -243,7 +239,7 @@ def update_everyone(heartbeat):
     for i in range(0,len(members)):
         if channels[i] == None:
             continue
-        channels[i].close()
+        del channels[i]
 
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
