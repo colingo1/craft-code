@@ -95,7 +95,7 @@ sock = socket.socket(socket.AF_INET, # Internet
                      socket.SOCK_DGRAM) # UDP	
 sock.bind(this_id)
 
-os.system("touch /home/ubuntu/"+this_id+".txt")
+os.system("touch /home/ubuntu/"+this_id[0]+".txt")
 
 first = True
 
@@ -159,8 +159,7 @@ def AppendEntries(request):
         run = threading.Timer(60*3, stop_running)
         run.start()
 
-    if leaderId != this_id:
-        pass
+    #if leaderId != this_id:
         #election_timer.cancel()
         #randTime = random.randint(250,500)
         #election_timer = threading.Timer(randTime/100.0, election_timeout) 
@@ -204,7 +203,7 @@ def Notified(request):
     global start_times, propose_time
     t = start_times[request.entry.data]
     elapsed_time = time.time() - t
-    f=open("/home/ubuntu/"+this_id+".txt", "a+")
+    f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
     f.write(str(elapsed_time)+"\n")
     f.close()
     propose_time = True
@@ -413,7 +412,7 @@ def main(args):
 
     # Count number of log entries that got into global log
     # Save results
-    f=open("/home/ubuntu/"+this_id+".ind", "w")
+    f=open("/home/ubuntu/"+this_id[0]+".ind", "w")
     f.write(str(len(log)-1))
     f.close()
 
