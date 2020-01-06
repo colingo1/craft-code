@@ -236,10 +236,10 @@ def update_everyone(heartbeat):
         if response.success and not heartbeat:
             nextIndex[server] = len(log)
             matchIndex[server] = len(log)-1
-    for i in range(0,len(members)):
-        if channels[i] == None:
+    for channel in channels:
+        if channel == None:
             continue
-        del channels[i]
+        del channel
 
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
