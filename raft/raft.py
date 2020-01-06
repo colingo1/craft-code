@@ -306,7 +306,7 @@ def become_leader():
 #        election_timer = threading.Timer(randTime/100.0, election_timeout) 
 #        election_timer.start()
 
-def receive_message(data, sock):
+def receive_message(data):
     message = pickle.loads(message_string)
     if message.func == "ReceivePropose":
         ReceivePropose(message.obj)
@@ -333,7 +333,7 @@ def start_grpc_server():
             # Make thread for receive handling
             receive_thread = multiprocessing.Process(
                     target=receive_message,
-                    args=(data, sock, proc_ids))
+                    args=(data,))
             receive_thread.start()
 
 
