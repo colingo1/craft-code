@@ -226,6 +226,7 @@ def send_append_entries(server,heartbeat):
     sock.sendto(message_string, server)
 
 def AppendEntriesResp(response):
+    global nextIndex, matchIndex, commitIndex, currentTerm, log
     if response.term > currentTerm:
         global current_state
         currentTerm = response.term
