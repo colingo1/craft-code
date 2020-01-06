@@ -174,7 +174,7 @@ def send_append_entries(server,heartbeat):
     with grpc.insecure_channel(server) as channel:
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
-            prev_index = nextIndex[server]-1
+            prev_index = nextIndex[server[0:-5]]-1
             prev_term = 0
             if len(log) > prev_index and prev_index >= 0:
                 prev_term = log[prev_index].term
@@ -190,15 +190,15 @@ def send_append_entries(server,heartbeat):
                 current_state = "follower"
                 return False
             if not response.success:
-                nextIndex[server] -=1
+                nextIndex[server[0:-5]] -=1
                 send_append_entries(server,heartbeat)
             if response.success and not heartbeat:
-                nextIndex[server] = len(log)
-                matchIndex[server] = len(log)-1
+                nextIndex[server[0:-5]] = len(log)
+                matchIndex[server[0:-5]] = len(log)-1
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
-    return matchIndex[server]
+    return matchIndex[server[0:-5]]
 
 
 def notify(server, entry):
