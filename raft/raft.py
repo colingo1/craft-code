@@ -286,7 +286,7 @@ def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=20))
     raft_pb2_grpc.add_RaftServicer_to_server(Raft(), server)
     for i in range(0,len(members)+1):
-        server.add_insecure_port('[::]:{}'.format(port+i))
+        server.add_insecure_port('[::]:{}'.format(my_port+i))
     server.start()
     server.wait_for_termination()
 
