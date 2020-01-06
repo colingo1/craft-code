@@ -169,25 +169,24 @@ class Raft(raft_pb2_grpc.RaftServicer):
         propose_time = True
         return ack(True)
 
-def send_append_entries(server,heartbeat):
+def send_append_entries(server,heartbeat,channel):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
-    with grpc.insecure_channel(server) as channel:
-        try:
-            stub = raft_pb2_grpc.RaftStub(channel)
-            prev_index = nextIndex[server]-1
-            prev_term = 0
-            if len(log) > prev_index and prev_index >= 0:
-                prev_term = log[prev_index].term
-            if heartbeat:
-                entries = []
-            else:
-                entries = log[prev_index+1:]
-            debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
-            response = stub.AppendEntries.future(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=TIMEOUT)
-            return response
-        except grpc.RpcError as e:
-            debug_print(e)
-            debug_print("couldn't connect to {}".format(server))
+    try:
+        stub = raft_pb2_grpc.RaftStub(channel)
+        prev_index = nextIndex[server]-1
+        prev_term = 0
+        if len(log) > prev_index and prev_index >= 0:
+            prev_term = log[prev_index].term
+        if heartbeat:
+            entries = []
+        else:
+            entries = log[prev_index+1:]
+        debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
+        response = stub.AppendEntries.future(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=TIMEOUT)
+        return response
+    except grpc.RpcError as e:
+        debug_print(e)
+        debug_print("couldn't connect to {}".format(server))
     return None
 
 
@@ -209,8 +208,11 @@ def update_everyone(heartbeat):
 
     # Send append entries in parallel
     processes = []
+    channels = []
+    for server in members:
+        channels.append(grpc.insecure_channel(server))
     for i in range(0,len(members)):
-        processes.append(send_append_entries(members[i],heartbeat))
+        processes.append(send_append_entries(members[i],heartbeat,channels[i]))
     for p in processes:
         response = p.result()
         if response is None:
@@ -222,10 +224,11 @@ def update_everyone(heartbeat):
             return False
         if not response.success:
             nextIndex[server] -=1
-            send_append_entries(server,heartbeat)
         if response.success and not heartbeat:
             nextIndex[server] = len(log)
             matchIndex[server] = len(log)-1
+    for i in range(0,len(members)):
+        channels[i].close()
 
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
