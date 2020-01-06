@@ -239,6 +239,16 @@ def AppendEntriesResp(response):
         nextIndex[server] = len(log)
         matchIndex[server] = len(log)-1
 
+    new_commit_index = commitIndex
+    for i in range(commitIndex+1,len(log)):
+        greater_index = [index for index in matchIndex.values() if index >= i]
+        if len(greater_index) > len(members)/2:
+            debug_print("committing to {}".format(i))
+            new_commit_index = i
+            # Notify proposer
+            notify(log[i].proposer, log[i])
+    commitIndex = new_commit_index
+
 def notify(server, entry):
     global sock
     if server is None:
@@ -252,16 +262,6 @@ def update_everyone(heartbeat):
     global commitIndex
     for server in members:
         send_append_entries(server,heartbeat)
-
-    new_commit_index = commitIndex
-    for i in range(commitIndex+1,len(log)):
-        greater_index = [index for index in matchIndex.values() if index >= i]
-        if len(greater_index) > len(members)/2:
-            debug_print("committing to {}".format(i))
-            new_commit_index = i
-            # Notify proposer
-            notify(log[i].proposer, log[i])
-    commitIndex = new_commit_index
 
     global heartbeat_timer
     heartbeat_timer = threading.Timer(50/100.0, heartbeat_timeout) 
