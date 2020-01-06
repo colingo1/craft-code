@@ -41,7 +41,7 @@ instance_file = open("instances.txt", 'r')
 members = []
 lines = instance_file.readlines()
 for line in lines:
-    members.append(line[0:-1]) 
+    members.append(line[0:-1]+":8100") 
 instance_file.close()
 
 # Read in own host name
@@ -174,7 +174,7 @@ def send_append_entries(server,heartbeat):
     with grpc.insecure_channel(server) as channel:
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
-            prev_index = nextIndex[server[0:-5]]-1
+            prev_index = nextIndex[server]-1
             prev_term = 0
             if len(log) > prev_index and prev_index >= 0:
                 prev_term = log[prev_index].term
@@ -190,15 +190,15 @@ def send_append_entries(server,heartbeat):
                 current_state = "follower"
                 return False
             if not response.success:
-                nextIndex[server[0:-5]] -=1
+                nextIndex[server] -=1
                 send_append_entries(server,heartbeat)
             if response.success and not heartbeat:
-                nextIndex[server[0:-5]] = len(log)
-                matchIndex[server[0:-5]] = len(log)-1
+                nextIndex[server] = len(log)
+                matchIndex[server] = len(log)-1
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
-    return matchIndex[server[0:-5]]
+    return matchIndex[server]
 
 
 def notify(server, entry):
@@ -222,7 +222,7 @@ def update_everyone(heartbeat):
     for i in range(0,len(members)):
         port = ":"+str(8100+i+1)
         p = multiprocessing.Process(target=send_append_entries, 
-                args=(members[i]+port,heartbeat))
+                args=(members[i],heartbeat))
         p.start()
         processes.append(p)
     for p in processes:
