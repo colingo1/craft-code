@@ -80,7 +80,7 @@ def term_equal(log_index, term):
     return log[log_index].term == term
 
 def propose(entry, server): 
-    global commitIndex
+    global commitIndex, propose_time
     if server == "":
         return
     with grpc.insecure_channel(server) as channel:
@@ -92,6 +92,7 @@ def propose(entry, server):
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
+            propose_time = True
 
 class Raft(raft_pb2_grpc.RaftServicer):
 
@@ -210,8 +211,14 @@ def update_everyone(heartbeat):
     processes = []
     channels = []
     for server in members:
-        channels.append(grpc.insecure_channel(server))
+        try:
+            channels.append(grpc.insecure_channel(server))
+        except grpc.RpcError as e:
+            debug_print(e)
+            channels.append(None)
     for i in range(0,len(members)):
+        if channels[i] == None:
+            continue
         processes.append(send_append_entries(members[i],heartbeat,channels[i]))
     for p in processes:
         response = p.result()
@@ -228,6 +235,8 @@ def update_everyone(heartbeat):
             nextIndex[server] = len(log)
             matchIndex[server] = len(log)-1
     for i in range(0,len(members)):
+        if channels[i] == None:
+            continue
         channels[i].close()
 
     new_commit_index = commitIndex
