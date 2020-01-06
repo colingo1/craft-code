@@ -209,17 +209,14 @@ def Notified(request):
     f.close()
     propose_time = True
 
-def send_append_entries(server,heartbeat):
+def send_append_entries(server):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
     global sock
     prev_index = nextIndex[server]-1
     prev_term = 0
     if len(log) > prev_index and prev_index >= 0:
         prev_term = log[prev_index].term
-    if heartbeat:
-        entries = []
-    else:
-        entries = log[prev_index+1:]
+    entries = log[prev_index+1:]
     debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
     new_message = Message("AppendEntries", Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex))
     message_string = pickle.dumps(new_message)
@@ -231,11 +228,11 @@ def AppendEntriesResp(response):
         global current_state
         currentTerm = response.term
         current_state = "follower"
-        return False
+        return
     if not response.success:
         nextIndex[server] -=1
-        send_append_entries(server,heartbeat)
-    if response.success and not heartbeat:
+        send_append_entries(server)
+    if response.success:
         nextIndex[server] = len(log)
         matchIndex[server] = len(log)-1
 
@@ -258,10 +255,10 @@ def notify(server, entry):
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
-def update_everyone(heartbeat):
+def update_everyone():
     global commitIndex
     for server in members:
-        send_append_entries(server,heartbeat)
+        send_append_entries(server)
 
     global heartbeat_timer
     heartbeat_timer = threading.Timer(50/100.0, heartbeat_timeout) 
@@ -275,7 +272,7 @@ def become_leader():
     nextIndex = {member:len(log) for member in members}
     matchIndex = {member:0 for member in members}
 
-    update_everyone(True)
+    update_everyone()
 
 #def hold_election():
 #    global currentTerm,matchIndex,current_state
@@ -394,7 +391,7 @@ def main(args):
     while running:
         if current_state == "leader" and update:
             update = False
-            update_everyone(False)
+            update_everyone()
         if propose_time and args[1] == "propose":
             propose_time = False
             entry = LogEntry(data = str(counter), 
