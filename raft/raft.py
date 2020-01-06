@@ -41,7 +41,7 @@ instance_file = open("instances.txt", 'r')
 members = []
 lines = instance_file.readlines()
 for line in lines:
-    members.append(line[0:-1]+":8100") 
+    members.append(line[0:-1]) 
 instance_file.close()
 
 # Read in own host name
@@ -219,9 +219,10 @@ def update_everyone(heartbeat):
 
     # Send append entries in parallel
     processes = []
-    for server in members:
+    for i in range(0,len(members)):
+        port = ":"+str(8100+i+1)
         p = multiprocessing.Process(target=send_append_entries, 
-                args=(server,heartbeat))
+                args=(members[i]+port,heartbeat))
         p.start()
         processes.append(p)
     for p in processes:
@@ -281,11 +282,10 @@ def hold_election():
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
         election_timer.start()
 
-def start_grpc_server():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))
+def start_grpc_server(port):
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=20))
     raft_pb2_grpc.add_RaftServicer_to_server(Raft(), server)
-    for i in range(0, len(members)+1):
-        server.add_insecure_port('[::]:{}'.format(my_port+i))
+    server.add_insecure_port('[::]:{}'.format(port))
     server.start()
     server.wait_for_termination()
 
@@ -336,8 +336,11 @@ def main(args):
     global running, start_times, leaderId
     global current_state, log
 
-    server_thread = threading.Thread(target=start_grpc_server,daemon=True)
-    server_thread.start()
+    for i in range(0, len(members)+1):
+        server_thread = threading.Thread(target=start_grpc_server,
+                args=(my_port+i,), daemon=True)
+        server_thread.start()
+
     counter = 0
     current_state = args[2]
     if current_state == "leader":
