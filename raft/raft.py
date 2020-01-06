@@ -204,7 +204,7 @@ def notify(server, entry):
 
 
 def update_everyone(heartbeat):
-    global commitIndex
+    global nextIndex, matchIndex, commitIndex, currentTerm, log
 
     # Send append entries in parallel
     processes = []
