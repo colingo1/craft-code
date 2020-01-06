@@ -14,6 +14,7 @@ from concurrent import futures
 import math
 import time
 import random
+import multiprocessing
 
 import craft_pb2
 import craft_pb2_grpc
@@ -335,9 +336,16 @@ def update_entries():
 def update_everyone(heartbeat,level=0):
     global commitIndex, possibleEntries, proposal_count
 
-    # Update followers 
-    for server in members[level]:
-        send_append_entries(server,heartbeat,level)
+    # Send append entries in parallel
+    processes = []
+    for server in members:
+        p = multiprocessing.Process(target=send_append_entries, 
+                args=(server,heartbeat))
+        p.start()
+        processes.append(p)
+    for p in processes:
+        p.join()
+
     new_commit_index = commitIndex[level]
     for i in range(commitIndex[level]+1,len(log[level])):
         greater_index = [index for index in matchIndex[level].values() if index >= i]
@@ -413,23 +421,15 @@ def hold_election():
 def propose_all(entry, level=0):
     global members, log, commitIndex, this_id, global_members
     index = len(log[level])
+    # Propose in parallel
+    processes = []
     for server in members[level]:
-        with grpc.insecure_channel(server) as channel:
-            stub = craft_pb2_grpc.cRaftStub(channel)
-            try:
-                if level == 0:
-                    response = stub.ReceivePropose(craft_pb2.Proposal(entry = entry, 
-                                               index = index,
-                                               commitIndex = commitIndex[level],
-                                               proposer = this_id), timeout=5)
-                else:
-                    response = stub.GlobalReceivePropose(craft_pb2.Proposal(entry = entry, 
-                                               index = index,
-                                               commitIndex = commitIndex[level],
-                                               proposer = this_id), timeout=5)
-            except grpc.RpcError as e:
-                debug_print(e)
-                debug_print("couldn't connect to {}".format(server))
+        p = multiprocessing.Process(target=propose,
+                args=(entry,index,server,level))
+        p.start()
+        processes.append(p)
+    for p in processes:
+        p.join()
 
 def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))

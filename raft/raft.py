@@ -14,6 +14,7 @@ from concurrent import futures
 import math
 import time
 import random
+import multiprocessing
 
 import raft_pb2
 import raft_pb2_grpc
@@ -52,6 +53,7 @@ host_file.close()
 os.system("touch /home/ubuntu/"+this_id+".txt")
 
 first = True
+TIMEOUT = 0.3
 
 def debug_print(m):
     if DEBUG:
@@ -86,7 +88,7 @@ def propose(entry, server):
             stub = raft_pb2_grpc.RaftStub(channel)
             debug_print("Sending Proposal to {}".format(server))
             response = stub.ReceivePropose(raft_pb2.Proposal(entry = entry, 
-                                                   proposer = this_id), timeout=5)
+                                                   proposer = this_id), timeout=TIMEOUT)
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
@@ -181,7 +183,7 @@ def send_append_entries(server,heartbeat):
             else:
                 entries = log[prev_index+1:]
             debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
-            response = stub.AppendEntries(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=5)
+            response = stub.AppendEntries(raft_pb2.Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex), timeout=TIMEOUT)
             if response.term > currentTerm:
                 global current_state
                 currentTerm = response.term
@@ -206,7 +208,7 @@ def notify(server, entry):
         try:
             stub = raft_pb2_grpc.RaftStub(channel)
             debug_print("Notifying {}".format(server))
-            response = stub.Notified(raft_pb2.Entry(entry = entry), timeout=5)
+            response = stub.Notified(raft_pb2.Entry(entry = entry), timeout=TIMEOUT)
         except grpc.RpcError as e:
             debug_print(e)
             debug_print("couldn't connect to {}".format(server))
@@ -214,8 +216,17 @@ def notify(server, entry):
 
 def update_everyone(heartbeat):
     global commitIndex
+
+    # Send append entries in parallel
+    processes = []
     for server in members:
-        send_append_entries(server,heartbeat)
+        p = multiprocessing.Process(target=send_append_entries, 
+                args=(server,heartbeat))
+        p.start()
+        processes.append(p)
+    for p in processes:
+        p.join()
+
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
@@ -250,7 +261,7 @@ def hold_election():
             with grpc.insecure_channel(server) as channel:
                 stub = raft_pb2_grpc.RaftStub(channel)
                 try:
-                    response = stub.RequestVote(raft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = len(log)-1, lastLogTerm = log[-1].term), timeout=5)
+                    response = stub.RequestVote(raft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = len(log)-1, lastLogTerm = log[-1].term), timeout=TIMEOUT)
                     if response.success:
                         vote_count +=1
                         debug_print("received vote from {}".format(server))
@@ -270,13 +281,11 @@ def hold_election():
         election_timer = threading.Timer(randTime/100.0, election_timeout) 
         election_timer.start()
 
-
-
-
 def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))
     raft_pb2_grpc.add_RaftServicer_to_server(Raft(), server)
-    server.add_insecure_port('[::]:{}'.format(my_port))
+    for i in range(0, len(members)+1):
+        server.add_insecure_port('[::]:{}'.format(my_port+i))
     server.start()
     server.wait_for_termination()
 

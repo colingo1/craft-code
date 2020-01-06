@@ -14,7 +14,7 @@ from concurrent import futures
 import math
 import time
 import random
-from multiprocessing import Process
+import multiprocessing
 
 import fraft_pb2
 import fraft_pb2_grpc
@@ -310,9 +310,16 @@ def update_entries():
 def update_everyone(heartbeat):
     global commitIndex, possibleEntries
 
-    # Update followers 
+    # Send append entries in parallel
+    processes = []
     for server in members:
-        send_append_entries(server,heartbeat)
+        p = multiprocessing.Process(target=send_append_entries, 
+                args=(server,heartbeat))
+        p.start()
+        processes.append(p)
+    for p in processes:
+        p.join()
+
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
@@ -370,9 +377,15 @@ def hold_election():
 def propose_all(entry):
     global members, log, commitIndex, this_id
     index = len(log)
+    # Propose in parallel
     processes = []
     for server in members:
-        propose(entry,index,server)
+        p = multiprocessing.Process(target=propose,
+                args=(entry,index,server))
+        p.start()
+        processes.append(p)
+    for p in processes:
+        p.join()
 
 def start_grpc_server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=200))
