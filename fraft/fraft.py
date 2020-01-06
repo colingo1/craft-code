@@ -512,10 +512,10 @@ def main(args):
             update_entries()
         if current_state == "leader" and update:
             update = False
-            update_everyone(False)
+            update_everyone()
         if propose_time and args[1] == "propose":
             propose_time = False
-            entry = fraft_pb2.LogEntry(data = str(counter), 
+            entry = LogEntry(data = str(counter), 
                                           term = currentTerm,
                                           appendedBy = False,
                                           proposer = this_id)
