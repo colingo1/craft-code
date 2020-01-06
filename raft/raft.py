@@ -307,7 +307,7 @@ def become_leader():
 #        election_timer.start()
 
 def receive_message(data):
-    message = pickle.loads(message_string)
+    message = pickle.loads(data)
     if message.func == "ReceivePropose":
         ReceivePropose(message.obj)
     elif message.func == "AppendEntries":
