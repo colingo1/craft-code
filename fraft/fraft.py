@@ -358,9 +358,9 @@ def update_entries():
         else: # Wait for this entry to be committed 
             break
 
-    #global poss_timer
-    #poss_timer = threading.Timer(50/1000.0, poss_timeout) 
-    #poss_timer.start()
+    global poss_timer
+    poss_timer = threading.Timer(25/1000.0, poss_timeout) 
+    poss_timer.start()
 
 def update_everyone():
     global commitIndex, possibleEntries
