@@ -359,7 +359,7 @@ def update_entries():
             break
 
     global poss_timer
-    poss_timer = threading.Timer(25/1000.0, poss_timeout) 
+    poss_timer = threading.Timer(75/1000.0, poss_timeout) 
     poss_timer.start()
 
 def update_everyone():
