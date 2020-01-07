@@ -268,7 +268,7 @@ def update_everyone():
         send_append_entries(server)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(5/1000.0, heartbeat_timeout) 
+    heartbeat_timer = threading.Timer(50/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
@@ -411,7 +411,7 @@ def main(args):
             for entry,index in repropose_log.values():
                 if index >= len(log):
                     propose(entry, leaderId)
-            repropose_timer = threading.Timer(5/1000.0, repropose_timeout) 
+            repropose_timer = threading.Timer(100/1000.0, repropose_timeout) 
             repropose_timer.start()
         if current_state == "leader" and update:
             update = False
