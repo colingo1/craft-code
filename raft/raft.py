@@ -406,13 +406,13 @@ def main(args):
         become_leader()
     
     while running:
-        #if repropose_time and args[1] == "propose":
-        #    repropose_time = False
-        #    for entry,index in repropose_log.values():
-        #        if index >= len(log):
-        #            propose(entry, leaderId)
-        #    repropose_timer = threading.Timer(100/1000.0, repropose_timeout) 
-        #    repropose_timer.start()
+        if repropose_time and args[1] == "propose":
+            repropose_time = False
+            for entry,index in repropose_log.values():
+                if index >= len(log):
+                    propose(entry, leaderId)
+            repropose_timer = threading.Timer(1000/1000.0, repropose_timeout) 
+            repropose_timer.start()
         if current_state == "leader" and update:
             update = False
             update_everyone()
