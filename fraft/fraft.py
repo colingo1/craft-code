@@ -249,7 +249,7 @@ def Notified(request):
     f.write(str(elapsed_time)+"\n")
     f.close()
     del repropose_log[request.entry.data]
-    #propose_time = True
+    propose_time = True
 
 def send_append_entries(server):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
@@ -364,7 +364,7 @@ def update_everyone():
         send_append_entries(server)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(5/100.0, heartbeat_timeout) 
+    heartbeat_timer = threading.Timer(20/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
@@ -458,10 +458,17 @@ Timer stop functions
 #election_timer = threading.Timer(1000/100.0, election_timeout) 
 #election_timer.start()
 
+# For reproposing entries
+repropose_time = True
+def repropose_timeout():
+    global repropose_time
+    repropose_time = True
+repropose_timer = None 
+
 # Used by leader to determine if it is time to send out heartbeat
 update_poss = True
 def poss_timeout():
-    global update
+    global update_poss
     update_poss = True
 poss_timer = None 
 
@@ -499,6 +506,7 @@ def main(args):
     global update, propose_time, election_timer, heartbeat_timer, proposal_timer
     global running, start_times, poss_timer, update_poss
     global current_state, log, repropose_log
+    global repropose_time, repropose_timer
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
@@ -508,11 +516,12 @@ def main(args):
         become_leader()
     
     while running:
-        if update_poss and args[1] == "propose":
+        if repropose_time and args[1] == "propose":
+            repropose_time = False
             for entry,index in repropose_log.values():
                 propose_all(entry, index)
-            poss_timer = threading.Timer(5/1000.0, poss_timeout) 
-            poss_timer.start()
+            repropose_timer = threading.Timer(50/1000.0, poss_timeout) 
+            repropose_timer.start()
         if current_state == "leader" and update_poss:
             update_poss = False
             update_entries()
@@ -529,8 +538,6 @@ def main(args):
             index = len(log)
             propose_all(entry,index)
             repropose_log[entry.data] = (entry, index)
-            proposal_timer = threading.Timer(1, propose_timeout) 
-            proposal_timer.start()
         if current_state == "candidate":
             hold_election()
         counter += 1

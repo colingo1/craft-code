@@ -203,13 +203,14 @@ def AppendEntries(request):
 #    return ack(False)
 
 def Notified(request):
-    global start_times, propose_time
+    global start_times, propose_time, repropose_log
     t = start_times[request.entry.data]
     elapsed_time = time.time() - t
     f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
     f.write(str(elapsed_time)+"\n")
     f.close()
-    #propose_time = True
+    del repropose_log[request.entry.data]
+    propose_time = True
 
 def send_append_entries(server):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
@@ -264,7 +265,7 @@ def update_everyone():
         send_append_entries(server)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(5/100.0, heartbeat_timeout) 
+    heartbeat_timer = threading.Timer(20/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
@@ -351,6 +352,13 @@ Timer stop functions
 #election_timer = threading.Timer(1000/100.0, election_timeout) 
 #election_timer.start()
 
+# For reproposing entries
+repropose_time = True
+def repropose_timeout():
+    global repropose_time
+    repropose_time = True
+repropose_timer = None 
+
 # Used by leader to determine if it is time to send out heartbeat
 update = False
 def heartbeat_timeout():
@@ -365,6 +373,7 @@ def propose_timeout():
     global propose_time
     debug_print("Proposal timeout")
     propose_time = True
+repropose_log = {}
 
 # Run experiment for set amount of time
 running = True
@@ -383,7 +392,7 @@ Main loop
 def main(args):
     global update, propose_time, election_timer, heartbeat_timer, proposal_timer
     global running, start_times, leaderId
-    global current_state, log
+    global current_state, log, repropose_log
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
@@ -393,6 +402,13 @@ def main(args):
         become_leader()
     
     while running:
+        if repropose_time and args[1] == "propose":
+            repropose_time = False
+            for entry,index in repropose_log.values():
+                if index >= len(log):
+                    propose(entry)
+            repropose_timer = threading.Timer(50/1000.0, poss_timeout) 
+            repropose_timer.start()
         if current_state == "leader" and update:
             update = False
             update_everyone()
@@ -404,8 +420,7 @@ def main(args):
             start_times[str(counter)] = time.time()
             debug_print("Proposing entry {} to {}".format(entry.data,leaderId))
             propose(entry, leaderId)
-            proposal_timer = threading.Timer(1, propose_timeout) 
-            proposal_timer.start()
+            repropose_log[entry.data] = (entry, index)
         if current_state == "candidate":
             hold_election()
         counter += 1
