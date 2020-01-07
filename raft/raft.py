@@ -393,6 +393,7 @@ def main(args):
     global update, propose_time, election_timer, heartbeat_timer, proposal_timer
     global running, start_times, leaderId
     global current_state, log, repropose_log
+    global repropose_time, repropose_timer
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
