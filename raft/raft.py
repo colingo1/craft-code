@@ -424,7 +424,7 @@ def main(args):
             start_times[str(counter)] = time.time()
             debug_print("Proposing entry {} to {}".format(entry.data,leaderId))
             propose(entry, leaderId)
-            repropose_log[entry.data] = (entry, index)
+            repropose_log[entry.data] = (entry, len(log))
         if current_state == "candidate":
             hold_election()
         counter += 1
