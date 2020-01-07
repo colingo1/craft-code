@@ -141,6 +141,9 @@ def propose(entry, server):
 
 def ReceivePropose(request):
     global log
+    for e in log:
+        if request.entry.data == e.data:
+            return
     log.append(request.entry)
 
 def AppendEntries(request):
