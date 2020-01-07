@@ -162,7 +162,7 @@ def AppendEntries(request):
     if first:
         first = False
         propose_time = True
-        run = threading.Timer(60*3, stop_running)
+        run = threading.Timer(60, stop_running)
         run.start()
 
     #if leaderId != this_id:
