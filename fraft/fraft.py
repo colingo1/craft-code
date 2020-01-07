@@ -162,6 +162,12 @@ def ReceivePropose(request):
     debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
     if request.index >= len(log) or log[request.index] == None:
         insert_log(request.entry, request.index, False)
+        if current_state == "leader":
+            # Add empty entries to log and possibleEntries
+            while request.index >= len(possibleEntries):
+                possibleEntries.append([None]*len(members))
+            selfIndex = members.index(this_id)
+            possibleEntries[request.index][selfIndex] = request.entry
 
     if current_state == "leader":
         # Add empty entries to log and possibleEntries
@@ -352,12 +358,14 @@ def update_entries():
         else: # Wait for this entry to be committed 
             break
 
-    global poss_timer
-    poss_timer = threading.Timer(50/1000.0, poss_timeout) 
-    poss_timer.start()
+    #global poss_timer
+    #poss_timer = threading.Timer(50/1000.0, poss_timeout) 
+    #poss_timer.start()
 
 def update_everyone():
     global commitIndex, possibleEntries
+
+    update_entries()
 
     # Update followers 
     for server in members:
@@ -466,7 +474,7 @@ def repropose_timeout():
 repropose_timer = None 
 
 # Used by leader to determine if it is time to send out heartbeat
-update_poss = True
+update_poss = False
 def poss_timeout():
     global update_poss
     update_poss = True
@@ -520,7 +528,7 @@ def main(args):
             repropose_time = False
             for entry,index in repropose_log.values():
                 propose_all(entry, index)
-            repropose_timer = threading.Timer(100/1000.0, repropose_timeout) 
+            repropose_timer = threading.Timer(300/1000.0, repropose_timeout) 
             repropose_timer.start()
         if current_state == "leader" and update_poss:
             update_poss = False
