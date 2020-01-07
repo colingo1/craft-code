@@ -404,7 +404,6 @@ def main(args):
             start_times[str(counter)] = time.time()
             debug_print("Proposing entry {} to {}".format(entry.data,leaderId))
             propose(entry, leaderId)
-            propose_all(entry)
             proposal_timer = threading.Timer(1, propose_timeout) 
             proposal_timer.start()
         if current_state == "candidate":
