@@ -268,7 +268,7 @@ def update_everyone():
         send_append_entries(server)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(50/1000.0, heartbeat_timeout) 
+    heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
