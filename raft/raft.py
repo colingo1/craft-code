@@ -410,7 +410,7 @@ def main(args):
             repropose_time = False
             for entry,index in repropose_log.values():
                 if index >= len(log):
-                    propose(entry)
+                    propose(entry, leaderId)
             repropose_timer = threading.Timer(50/1000.0, repropose_timeout) 
             repropose_timer.start()
         if current_state == "leader" and update:
