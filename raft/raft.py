@@ -417,6 +417,7 @@ def main(args):
             update = False
             update_everyone()
         if propose_time and args[1] == "propose":
+            counter += 1
             propose_time = False
             entry = LogEntry(data = str(counter), 
                                           term = currentTerm,
@@ -427,7 +428,6 @@ def main(args):
             repropose_log[entry.data] = (entry, len(log))
         if current_state == "candidate":
             hold_election()
-        counter += 1
 
 
     # Count number of log entries that got into global log

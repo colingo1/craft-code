@@ -353,7 +353,7 @@ def update_entries():
             break
 
     global poss_timer
-    poss_timer = threading.Timer(5/1000.0, poss_timeout) 
+    poss_timer = threading.Timer(50/1000.0, poss_timeout) 
     poss_timer.start()
 
 def update_everyone():
@@ -364,7 +364,7 @@ def update_everyone():
         send_append_entries(server)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(20/1000.0, heartbeat_timeout) 
+    heartbeat_timer = threading.Timer(50/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
@@ -520,7 +520,7 @@ def main(args):
             repropose_time = False
             for entry,index in repropose_log.values():
                 propose_all(entry, index)
-            repropose_timer = threading.Timer(5/1000.0, repropose_timeout) 
+            repropose_timer = threading.Timer(100/1000.0, repropose_timeout) 
             repropose_timer.start()
         if current_state == "leader" and update_poss:
             update_poss = False
@@ -529,6 +529,7 @@ def main(args):
             update = False
             update_everyone()
         if propose_time and args[1] == "propose":
+            counter += 1
             propose_time = False
             entry = LogEntry(data = str(counter), 
                                           term = currentTerm,
@@ -540,7 +541,6 @@ def main(args):
             repropose_log[entry.data] = (entry, index)
         if current_state == "candidate":
             hold_election()
-        counter += 1
 
 #def main():
 #    server_thread = threading.Thread(target=start_grpc_server,daemon=True)
