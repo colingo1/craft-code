@@ -642,6 +642,8 @@ def main(args):
     # Count number of log entries that got into global log
     count = 0
     for e in log[1]:
+        if e is None:
+            continue
         count += len(e.data.split(','))
 
     # Save results
