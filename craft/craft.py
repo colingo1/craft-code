@@ -182,7 +182,7 @@ def propose(entry, index, server, level=0):
     sock.sendto(message_string, server)
 
 def GlobalReceivePropose(request):
-    ReceivePropose(request,context,1)
+    ReceivePropose(request,1)
 
 def ReceivePropose(request,level=0):
     global log, possibleEntries, members, leaderId, current_state
