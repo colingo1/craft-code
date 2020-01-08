@@ -112,6 +112,11 @@ host_file = open("host_name.txt", 'r')
 this_id = (host_file.readlines()[0][0:-1],8100)
 host_file.close()
 
+# Create socket for listening and sending
+sock = socket.socket(socket.AF_INET, # Internet
+                     socket.SOCK_DGRAM) # UDP	
+sock.bind(this_id)
+
 os.system("touch /home/ubuntu/"+this_id[0]+".txt")
 
 first = True
@@ -354,7 +359,7 @@ def notify(server, entry):
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
-def update_entries():
+def update_entries(level=0):
     global commitIndex, possibleEntries, proposal_count
 
     # Fast-track commit check
