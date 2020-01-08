@@ -283,7 +283,7 @@ def Notified(request,level=0):
     global start_times, propose_time
     t = start_times[level][request.entry.data]
     elapsed_time = time.time() - t
-    del repropose_log[request.entry.data]
+    del repropose_log[level][request.entry.data]
     propose_time = True
 
 
