@@ -312,8 +312,8 @@ def AppendEntriesResp(response):
         return False
     if not response.success:
         nextIndex[level][server] -=1
-        send_append_entries(server,heartbeat,level)
-    if response.success and not heartbeat:
+        send_append_entries(server,level)
+    if response.success:
         nextIndex[level][server] = len(log[level])
         matchIndex[level][server] = len(log[level])-1
 
@@ -407,7 +407,7 @@ def update_everyone(level=0):
 
     # Update followers 
     for server in members[level]:
-        send_append_entries(server,heartbeat,level)
+        send_append_entries(server,level)
 
     global heartbeat_timer
     heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
