@@ -91,7 +91,7 @@ instance_file = open("cluster.txt", 'r')
 members = [[],[]]
 lines = instance_file.readlines()
 for line in lines:
-    members[0].append(line[0:-1]+":8100") 
+    members[0].append((line[0:-1],8100)) 
 instance_file.close()
 
 # Read from instances.txt file for members
