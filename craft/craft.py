@@ -305,7 +305,7 @@ def send_append_entries(server,level=0):
     sock.sendto(message_string, server)
 
 def AppendEntriesResp(response):
-    global nextIndex, matchIndex, commitIndex, currentTerm
+    global nextIndex, matchIndex, commitIndex, currentTerm, proposal_count
     level = response.level
     server = response.server
     if response.term > currentTerm:
