@@ -171,12 +171,12 @@ def propose(entry, index, server, level=0):
         new_message = Message("ReceivePropose", Proposal(entry = entry, 
                                            index = index,
                                            commitIndex = commitIndex[level],
-                                           proposer = this_id), timeout=5)
+                                           proposer = this_id))
     else:
         new_message = Message("GlobalReceivePropose", Proposal(entry = entry, 
                                            index = index,
                                            commitIndex = commitIndex[level],
-                                           proposer = this_id), timeout=5)
+                                           proposer = this_id))
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
@@ -298,7 +298,7 @@ def send_append_entries(server,level=0):
     if level == 0:
         new_message = Message("AppendEntries",Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex[level]))
     else:
-        new_message = Message("GlobalAppendEntries",Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex[level]), timeout=5)
+        new_message = Message("GlobalAppendEntries",Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex[level]))
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
@@ -451,7 +451,7 @@ def AppendEntryResp(request):
 #            with grpc.insecure_channel(server) as channel:
 #                stub = craft_pb2_grpc.cRaftStub(channel)
 #                try:
-#                    response = stub.RequestVote(craft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term), timeout=5)
+#                    response = stub.RequestVote(craft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term))
 #                    if response.success:
 #                        vote_count +=1
 #                        debug_print("received vote from {}".format(server))
