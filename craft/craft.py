@@ -283,8 +283,8 @@ def Notified(request,level=0):
     global start_times, propose_time
     t = start_times[level][request.entry.data]
     elapsed_time = time.time() - t
-    del repropose_log[level][request.entry.data]
     propose_time = True
+    del repropose_log[level][request.entry.data]
 
 
 def send_append_entries(server,level=0):
@@ -618,6 +618,7 @@ def main(args):
             start_times[0][str(counter)] = time.time()
             index = len(log[0])
             propose_all(entry,index)
+            repropose_log[0][entry.data] = (entry, index)
         if current_state[0] == "leader" and proposal_count >= 10:
             proposal_count = 0
             global_entries = log[0][lastGlobalIndex:]
@@ -631,6 +632,7 @@ def main(args):
             start_times[1][data] = time.time()
             index = len(log[1])
             propose_all(entry, index, 1)
+            repropose_log[1][entry.data] = (entry, index)
         if current_state == "candidate":
             hold_election()
 
