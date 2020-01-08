@@ -615,6 +615,7 @@ def main(args):
                                           appendedBy = False,
                                           proposer = this_id)
             start_times[0][str(counter)] = time.time()
+            index = len(log[0])
             propose_all(entry,index)
         if current_state[0] == "leader" and proposal_count >= 10:
             proposal_count = 0
@@ -627,7 +628,8 @@ def main(args):
                                   appendedBy = False,
                                   proposer = this_id)
             start_times[1][data] = time.time()
-            propose_all(entry, 1)
+            index = len(log[1])
+            propose_all(entry, index, 1)
         if current_state == "candidate":
             hold_election()
 
