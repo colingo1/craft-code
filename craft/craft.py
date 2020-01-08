@@ -211,9 +211,9 @@ def ReceivePropose(request,level=0):
         propose(log[level][request.index], request.index, leaderId[level], level)
 
 def GlobalAppendEntries(request):
-    AppendEntries(request,context,1)
+    AppendEntries(request,1)
 
-def AppendEntries(self,request,context,level=0):
+def AppendEntries(request,level=0):
     global log, commitIndex, currentTerm
     global timer, first, run, propose_time
 
