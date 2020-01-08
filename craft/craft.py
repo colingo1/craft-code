@@ -76,7 +76,7 @@ votedFor = "";
 # Volatile state of all servers
 commitIndex = [0,0];
 lastApplied = [0,0];
-leaderId = ["",""];
+leaderId = [None,None];
 lastGlobalIndex = 0
 proposal_count = 0
 
@@ -229,6 +229,7 @@ def AppendEntries(request,level=0):
         ack(False, request.leaderId, level)
     #if not term_equal(request.prevLogIndex, request.prevLogTerm):
     #    return ack(False)
+    leaderId[level] = request.leaderId
 
     if request.term > currentTerm:
         global current_state
