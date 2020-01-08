@@ -378,7 +378,7 @@ def update_entries(level=0):
         # Update fastMatchIndex for agents
         for i in range(0,len(members[level])):
             if possibleEntries[level][k][i] == e:
-                fastMatchIndex[level][members[i]] = k
+                fastMatchIndex[level][members[level][i]] = k
 
         # If Fast-track succeeded
         if count >= math.ceil(3.0*len(members[level])/4.0):
