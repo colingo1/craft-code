@@ -604,7 +604,7 @@ def main(args):
                 update_entries(level)
             if current_state[level] == "leader" and update[level]:
                 update[level] = False
-                update_everyone(False, level)
+                update_everyone(level)
         if propose_time and args[1] == "propose":
             counter += 1
             propose_time = False
