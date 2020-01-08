@@ -53,10 +53,11 @@ class Entries():
         self.leaderCommit = leaderCommit;
 
 class Ack():
-    def __init__(self, term, success, server):
+    def __init__(self, term, success, server, level):
         self.term = term;
         self.success = success;
         self.server = server
+        self.level = level
 
 class VoteRequest():
     def __init__(self, term, candidateId, lastLogIndex, lastLogTerm):
@@ -135,17 +136,17 @@ def print_log():
         
         print("{}\t{}\t{}".format(i,log[i].term,log[i].data))
 
-def ack_append(success, server):
+def ack_append(success, server, level=0):
     global sock
     new_message = Message("ACK_append", Ack(term = currentTerm, 
-                    success = success, server = this_id))
+                    success = success, server = this_id, level = level))
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
-def ack(success, server):
+def ack(success, server, level=0):
     global sock
     new_message = Message("ACK", Ack(term = currentTerm, 
-                    success = success, server = this_id))
+                    success = success, server = this_id, level = level))
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
@@ -225,7 +226,7 @@ def AppendEntries(request,level=0):
 
     debug_print("Received AppendEntries from {}".format(request.leaderId))
     if request.term < currentTerm:
-        return ack(False)
+        ack(False, request.leaderId, level)
     #if not term_equal(request.prevLogIndex, request.prevLogTerm):
     #    return ack(False)
 
@@ -253,11 +254,11 @@ def AppendEntries(request,level=0):
     if commitIndex[level] > oldCommitIndex:
         debug_print("committing to {} at level {}".format(commitIndex[level], level))
 
-    ack(True, request.leaderId)
+    ack(True, request.leaderId, level)
 
 def AppendEntry(request):
     insert_log(request.entry, request.index, True, 1)
-    ack_append(True, request.leaderId)
+    ack_append(True, request.leaderId, 1)
 
 #def RequestVote(self,request,context):
 #    global currentTerm, commitIndex
@@ -304,6 +305,7 @@ def send_append_entries(server,level=0):
 
 def AppendEntriesResp(response):
     global nextIndex, matchIndex, commitIndex, currentTerm
+    level = response.level
     server = response.server
     if response.term > currentTerm:
         global current_state
