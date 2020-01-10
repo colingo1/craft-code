@@ -284,7 +284,7 @@ def AppendEntriesResp(response):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
     server = response.server
     
-    if server is not in members:
+    if server not in members:
         members.append(server)
         entry = LogEntry(data = server, 
                           term = currentTerm,
