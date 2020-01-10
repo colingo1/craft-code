@@ -188,8 +188,8 @@ def AppendEntries(request):
     if first:
         first = False
         propose_time = True
-        run = threading.Timer(60, stop_running)
-        run.start()
+        #run = threading.Timer(60, stop_running)
+        #run.start()
 
 
     debug_print("Received AppendEntries from {}".format(request.leaderId))
