@@ -559,7 +559,7 @@ def main(args):
         new_message = Message("JoinRequest", Ack(term = currentTerm, 
                     success = True, server = this_id))
         message_string = pickle.dumps(new_message)
-        sock.sendto(message_string, args[4])
+        sock.sendto(message_string, (args[4],8100))
     
     while running:
         if repropose_time and len(repropose_log) != 0:
