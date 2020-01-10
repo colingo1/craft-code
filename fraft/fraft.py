@@ -109,6 +109,7 @@ sock.bind(this_id)
 os.system("touch /home/ubuntu/"+this_id[0]+".txt")
 
 first = True
+joining = False
 
 def debug_print(m):
     if DEBUG:
@@ -183,14 +184,17 @@ def ReceivePropose(request):
 
 def AppendEntries(request):
     global log, commitIndex, currentTerm, leaderId
-    global election_timer, first, run, propose_time
+    global election_timer, first, run, propose_time, joining
 
     if first:
         first = False
         propose_time = True
         #run = threading.Timer(60, stop_running)
         #run.start()
-
+    elif joining:
+        f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
+        f.write(str(time.time())+"\n")
+        f.close()
 
     debug_print("Received AppendEntries from {}".format(request.leaderId))
     if request.term < currentTerm:
@@ -252,7 +256,7 @@ def Notified(request):
     t = start_times[request.entry.data]
     elapsed_time = time.time() - t
     f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
-    f.write(str(elapsed_time)+"\n")
+    f.write(str(time.time())+": "+str(elapsed_time)+"\n")
     f.close()
     del repropose_log[request.entry.data]
     propose_time = True
@@ -547,6 +551,11 @@ def main(args):
         become_leader()
 
     if args[3] == "join":
+        global joining
+        joining = True
+        f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
+        f.write(str(time.time())+"\n")
+        f.close()
         new_message = Message("JoinRequest", Ack(term = currentTerm, 
                     success = True, server = this_id))
         message_string = pickle.dumps(new_message)
