@@ -257,6 +257,15 @@ def Notified(request):
     del repropose_log[request.entry.data]
     propose_time = True
 
+def JoinRequest(request):
+    global log, this_id, commitIndex
+    server = request.server
+    entries = log
+    debug_print("Sending AppendEntries to new server {}".format(server))
+    new_message = Message("AppendEntries", Entries(term = currentTerm, leaderId = this_id, prevLogIndex = 0, prevLogTerm = 0, entries=entries,leaderCommit = commitIndex))
+    message_string = pickle.dumps(new_message)
+    sock.sendto(message_string, server)
+
 def send_append_entries(server):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
     global sock
@@ -270,9 +279,22 @@ def send_append_entries(server):
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
+
 def AppendEntriesResp(response):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
     server = response.server
+    
+    if server is not in members:
+        members.append(server)
+        entry = LogEntry(data = server, 
+                          term = currentTerm,
+                          appendedBy = False,
+                          proposer = this_id)
+        index = len(log)
+        propose_all(entry, )
+        global repropose_log
+        repropose_log[entry.data] = (entry, index)
+
     if response.term > currentTerm:
         global current_state
         currentTerm = response.term
@@ -280,7 +302,6 @@ def AppendEntriesResp(response):
         return
     if not response.success:
         nextIndex[server] -=1
-        send_append_entries(server)
     if response.success:
         nextIndex[server] = len(log)
         matchIndex[server] = len(log)-1
@@ -430,6 +451,8 @@ def receive_message(data):
         AppendEntries(message.obj)
     elif message.func == "ACK":
         AppendEntriesResp(message.obj)
+    elif message.func == "JoinRequest":
+        JoinRequest(message.obj)
     #elif message.func == "RequestVote":
     #    RequestVote(message.obj)
     elif message.func == "Notified":
@@ -514,7 +537,7 @@ def main(args):
     global update, propose_time, election_timer, heartbeat_timer, proposal_timer
     global running, start_times, poss_timer, update_poss
     global current_state, log, repropose_log
-    global repropose_time, repropose_timer
+    global repropose_time, repropose_timer, commitIndex
 
     server_thread = threading.Thread(target=start_grpc_server,daemon=True)
     server_thread.start()
@@ -522,12 +545,25 @@ def main(args):
     current_state = args[2]
     if current_state == "leader":
         become_leader()
+
+    if args[3] == "join":
+        new_message = Message("JoinRequest", Ack(term = currentTerm, 
+                    success = True, server = this_id))
+        message_string = pickle.dumps(new_message)
+        sock.sendto(message_string, args[4])
     
     while running:
-        if repropose_time and args[1] == "propose":
+        if repropose_time and len(repropose_log) != 0:
             repropose_time = False
-            for entry,index in repropose_log.values():
-                propose_all(entry, index)
+            try:
+                for entry,index in repropose_log.values():
+                    if commitIndex <= index:
+                        propose_all(entry, len(log))
+                        break
+                    else:
+                        propose_all(entry, index)
+            except:
+                pass
             repropose_timer = threading.Timer(150/1000.0, repropose_timeout) 
             repropose_timer.start()
         if current_state == "leader" and update_poss:
