@@ -295,7 +295,7 @@ def AppendEntriesResp(response):
                           appendedBy = False,
                           proposer = this_id)
         index = len(log)
-        propose_all(entry, )
+        propose_all(entry, index)
         global repropose_log
         repropose_log[entry.data] = (entry, index)
 
