@@ -400,13 +400,17 @@ def update_everyone():
         memberTimeout[server] += 1
         send_append_entries(server)
 
+    global heartbeat_timer
+    heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
+    heartbeat_timer.start()
+
     for server in members:
         if memberTimeout[server] > 5:
             global nextIndex, matchIndex
             members.remove(server)
-            memberTimeout.remove(server)
-            nextIndex.remove(server)
-            matchIndex.remove(server)
+            del memberTimeout[server]
+            del nextIndex[server]
+            del matchIndex[server]
             entry = LogEntry(data = server, 
                               term = currentTerm,
                               appendedBy = False,
@@ -417,10 +421,6 @@ def update_everyone():
             start_times[entry.data] = time.time()
             repropose_log[entry.data] = (entry, index)
             break
-
-    global heartbeat_timer
-    heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
-    heartbeat_timer.start()
 
 
 def become_leader():
