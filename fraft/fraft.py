@@ -418,7 +418,7 @@ def update_everyone():
 
 
 def become_leader():
-    global nextIndex, matchIndex, election_timer
+    global nextIndex, matchIndex, election_timer, memberTimeout
     #election_timer.cancel()
 
     nextIndex = {member:len(log) for member in members}
