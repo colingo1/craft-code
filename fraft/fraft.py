@@ -79,6 +79,7 @@ leaderId = None;
 nextIndex = {}
 matchIndex = {}
 fastMatchIndex = {}
+memberTimeout = {}
 
 current_state = "follower"
 
@@ -285,8 +286,9 @@ def send_append_entries(server):
 
 
 def AppendEntriesResp(response):
-    global nextIndex, matchIndex, commitIndex, currentTerm, log
+    global nextIndex, matchIndex, commitIndex, currentTerm, log, memberTimeout
     server = response.server
+    memberTimeout[server] = 0
     
     if server not in members:
         members.append(server)
@@ -388,13 +390,27 @@ def update_entries():
     poss_timer.start()
 
 def update_everyone():
-    global commitIndex, possibleEntries
+    global commitIndex, possibleEntries, memberTimeout, members
 
     update_entries()
 
     # Update followers 
     for server in members:
+        memberTimeout[server] += 1
         send_append_entries(server)
+
+    for server in members:
+        if memberTimeout[server] > 5:
+            members.remove(server)
+            entry = LogEntry(data = server, 
+                              term = currentTerm,
+                              appendedBy = False,
+                              proposer = this_id)
+            index = len(log)
+            propose_all(entry, index)
+            global repropose_log
+            repropose_log[entry.data] = (entry, index)
+            break
 
     global heartbeat_timer
     heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
@@ -407,6 +423,7 @@ def become_leader():
 
     nextIndex = {member:len(log) for member in members}
     matchIndex = {member:0 for member in members}
+    memberTimeout = {member:0 for member in members}
 
     update_everyone()
 
