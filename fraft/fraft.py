@@ -404,7 +404,7 @@ def update_everyone():
         if memberTimeout[server] > 5:
             global nextIndex, matchIndex
             members.remove(server)
-            memberTimout.remove(server)
+            memberTimeout.remove(server)
             nextIndex.remove(server)
             matchIndex.remove(server)
             entry = LogEntry(data = server, 
