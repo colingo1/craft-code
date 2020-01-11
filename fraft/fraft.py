@@ -589,7 +589,7 @@ def main(args):
             repropose_time = False
             try:
                 for entry,index in repropose_log.values():
-                    if commitIndex <= index:
+                    if commitIndex >= index and log[index].data != entry.data:
                         propose_all(entry, len(log))
                         break
                     else:
