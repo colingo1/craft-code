@@ -407,10 +407,6 @@ def update_everyone():
     for server in members:
         if memberTimeout[server] > 5:
             global nextIndex, matchIndex
-            members.remove(server)
-            del memberTimeout[server]
-            del nextIndex[server]
-            del matchIndex[server]
             entry = LogEntry(data = server, 
                               term = currentTerm,
                               appendedBy = False,
@@ -420,6 +416,10 @@ def update_everyone():
             global repropose_log, start_times
             start_times[entry.data] = time.time()
             repropose_log[entry.data] = (entry, index)
+            members.remove(server)
+            del memberTimeout[server]
+            del nextIndex[server]
+            del matchIndex[server]
             break
 
 
