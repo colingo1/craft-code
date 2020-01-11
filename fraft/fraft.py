@@ -298,7 +298,8 @@ def AppendEntriesResp(response):
                           proposer = this_id)
         index = len(log)
         propose_all(entry, index)
-        global repropose_log
+        global repropose_log, start_times
+        start_times[entry.data] = time.time()
         repropose_log[entry.data] = (entry, index)
 
     if response.term > currentTerm:
@@ -408,7 +409,8 @@ def update_everyone():
                               proposer = this_id)
             index = len(log)
             propose_all(entry, index)
-            global repropose_log
+            global repropose_log, start_times
+            start_times[entry.data] = time.time()
             repropose_log[entry.data] = (entry, index)
             break
 
