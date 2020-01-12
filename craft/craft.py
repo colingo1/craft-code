@@ -355,7 +355,7 @@ def most_frequent(List):
 
 def notify(server, entry):
     global sock
-    if server == None:
+    if server is None:
         return
     debug_print("Notifying {}".format(server))
     new_message = Message("Notified", Entry(entry = entry, index = -1))
@@ -603,7 +603,7 @@ def main(args):
                         propose_all(entry, index, level)
                 except: # if dictionary changes sizes in middle of run, don't panic
                     pass
-                repropose_timer = threading.Timer(150/1000.0, repropose_timeout) 
+                repropose_timer = threading.Timer(1000/1000.0, repropose_timeout) 
                 repropose_timer.start()
             if current_state[level] == "leader" and update_poss[level]:
                 update_poss[level] = False
