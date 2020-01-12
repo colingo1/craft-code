@@ -148,7 +148,7 @@ def ReceivePropose(request):
     #        return
     log_mutex.acquire()
     log.append(request.entry)
-    log_mutex.unlock()
+    log_mutex.release()
 
 def AppendEntries(request):
     global log, commitIndex, currentTerm, leaderId
@@ -233,7 +233,7 @@ def send_append_entries(server):
     sock.sendto(message_string, server)
 
 def AppendEntriesResp(response):
-    global nextIndex, matchIndex, commitIndex, currentTerm, log
+    global nextIndex, matchIndex, commitIndex, currentTerm, log, log_mutex
     server = response.server
     if response.term > currentTerm:
         global current_state
@@ -257,7 +257,7 @@ def AppendEntriesResp(response):
             # Notify proposer
             notify(log[i].proposer, log[i])
     commitIndex = new_commit_index
-    log_mutex.unlock()
+    log_mutex.release()
 
 def notify(server, entry):
     global sock
