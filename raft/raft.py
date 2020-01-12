@@ -18,7 +18,7 @@ import random
 import socket
 import pickle
 
-log_mutex = Threading.Lock()
+log_mutex = threading.Lock()
 
 class Message():
     def __init__(self, func, obj):
