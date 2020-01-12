@@ -217,7 +217,7 @@ def Notified(request):
     f.write(str(elapsed_time)+"\n")
     f.close()
     propose_time = True
-    del repropose_log[request.entry.data]
+    #del repropose_log[request.entry.data]
 
 def send_append_entries(server):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
