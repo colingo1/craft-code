@@ -248,7 +248,6 @@ def AppendEntriesResp(response):
         matchIndex[server] = len(log)-1
 
     log_mutex.acquire()
-    global commitIndex, log
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
