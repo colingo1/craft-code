@@ -216,8 +216,8 @@ def Notified(request):
     f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
     f.write(str(elapsed_time)+"\n")
     f.close()
-    del repropose_log[request.entry.data]
     propose_time = True
+    del repropose_log[request.entry.data]
 
 def send_append_entries(server):
     global nextIndex, matchIndex, commitIndex, currentTerm, log
