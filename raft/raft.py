@@ -238,7 +238,6 @@ def AppendEntriesResp(response):
         return
     if not response.success:
         nextIndex[server] -=1
-        send_append_entries(server)
     if response.success:
         nextIndex[server] = len(log)
         matchIndex[server] = len(log)-1

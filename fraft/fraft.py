@@ -257,7 +257,7 @@ def Notified(request):
     t = start_times[request.entry.data]
     elapsed_time = time.time() - t
     f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
-    f.write(str(time.time())+": "+str(elapsed_time)+"\n")
+    f.write(str(elapsed_time)+"\n")
     f.close()
     del repropose_log[request.entry.data]
     propose_time = True
