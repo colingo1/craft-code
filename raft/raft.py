@@ -162,7 +162,7 @@ def AppendEntries(request):
     if first:
         first = False
         propose_time = True
-        run = threading.Timer(60*3, stop_running)
+        run = threading.Timer(60, stop_running)
         run.start()
 
     #if leaderId != this_id:
@@ -411,7 +411,7 @@ def main(args):
             for entry,index in repropose_log.values():
                 if index >= len(log):
                     propose(entry, leaderId)
-            repropose_timer = threading.Timer(1000/1000.0, repropose_timeout) 
+            repropose_timer = threading.Timer(150/1000.0, repropose_timeout) 
             repropose_timer.start()
         if current_state == "leader" and update:
             update = False

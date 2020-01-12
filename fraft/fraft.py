@@ -190,8 +190,8 @@ def AppendEntries(request):
     if first:
         first = False
         propose_time = True
-        #run = threading.Timer(60, stop_running)
-        #run.start()
+        run = threading.Timer(60, stop_running)
+        run.start()
     elif joining:
         f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
         f.write(str(time.time())+"\n")
@@ -404,23 +404,23 @@ def update_everyone():
     heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
-    for server in members:
-        if memberTimeout[server] > 5:
-            global nextIndex, matchIndex
-            entry = LogEntry(data = server, 
-                              term = currentTerm,
-                              appendedBy = False,
-                              proposer = this_id)
-            index = len(log)
-            propose_all(entry, index)
-            global repropose_log, start_times
-            start_times[entry.data] = time.time()
-            repropose_log[entry.data] = (entry, index)
-            members.remove(server)
-            del memberTimeout[server]
-            del nextIndex[server]
-            del matchIndex[server]
-            break
+    #for server in members:
+    #    if memberTimeout[server] > 5:
+    #        global nextIndex, matchIndex
+    #        entry = LogEntry(data = server, 
+    #                          term = currentTerm,
+    #                          appendedBy = False,
+    #                          proposer = this_id)
+    #        index = len(log)
+    #        propose_all(entry, index)
+    #        global repropose_log, start_times
+    #        start_times[entry.data] = time.time()
+    #        repropose_log[entry.data] = (entry, index)
+    #        members.remove(server)
+    #        del memberTimeout[server]
+    #        del nextIndex[server]
+    #        del matchIndex[server]
+    #        break
 
 
 def become_leader():
