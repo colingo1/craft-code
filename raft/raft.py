@@ -18,6 +18,8 @@ import random
 import socket
 import pickle
 
+log_mutex = Threading.Lock()
+
 class Message():
     def __init__(self, func, obj):
         self.func = func
@@ -140,11 +142,13 @@ def propose(entry, server):
     sock.sendto(message_string, server)
 
 def ReceivePropose(request):
-    global log
+    global log, log_mutex
     #for e in log:
     #    if request.entry.data == e.data:
     #        return
+    log_mutex.acquire()
     log.append(request.entry)
+    log_mutex.unlock()
 
 def AppendEntries(request):
     global log, commitIndex, currentTerm, leaderId
@@ -162,7 +166,7 @@ def AppendEntries(request):
     if first:
         first = False
         propose_time = True
-        run = threading.Timer(60, stop_running)
+        run = threading.Timer(60*3, stop_running)
         run.start()
 
     #if leaderId != this_id:
@@ -243,6 +247,8 @@ def AppendEntriesResp(response):
         nextIndex[server] = len(log)
         matchIndex[server] = len(log)-1
 
+    log_mutex.acquire()
+    global commitIndex, log
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
@@ -252,6 +258,7 @@ def AppendEntriesResp(response):
             # Notify proposer
             notify(log[i].proposer, log[i])
     commitIndex = new_commit_index
+    log_mutex.unlock()
 
 def notify(server, entry):
     global sock
@@ -406,13 +413,13 @@ def main(args):
         become_leader()
     
     while running:
-        if repropose_time and args[1] == "propose":
-            repropose_time = False
-            for entry,index in repropose_log.values():
-                if index >= len(log):
-                    propose(entry, leaderId)
-            repropose_timer = threading.Timer(150/1000.0, repropose_timeout) 
-            repropose_timer.start()
+        #if repropose_time and args[1] == "propose":
+        #    repropose_time = False
+        #    for entry,index in repropose_log.values():
+        #        if index >= len(log):
+        #            propose(entry, leaderId)
+        #    repropose_timer = threading.Timer(150/1000.0, repropose_timeout) 
+        #    repropose_timer.start()
         if current_state == "leader" and update:
             update = False
             update_everyone()
