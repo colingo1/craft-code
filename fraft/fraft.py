@@ -65,6 +65,8 @@ class VoteRequest():
         self.lastLogTerm = lastLogTerm;
 
 DEBUG = True
+num_normal_path = 0
+num_fast_path = 0
 # Stable storage of all servers as defined in the fRaft paper.
 currentTerm = 0;
 log = [LogEntry(data = "NULL", term = 0, appendedBy = True, proposer="")];
@@ -318,6 +320,8 @@ def AppendEntriesResp(response):
         greater_index = [index for index in matchIndex.values() if index >= i]
         if len(greater_index) > len(members)/2:
             debug_print("committing to {}".format(i))
+            global num_normal_path
+            num_normal_path += 1
             new_commit_index = i
             # Notify proposer
             notify(log[i].proposer, log[i])
@@ -381,6 +385,8 @@ def update_entries():
 
             # Update commitIndex and notify client
             commitIndex = k
+            global num_fast_path
+            num_fast_path+= 1
             notify(log[k].proposer, log[k])
             k += 1
         else: # Wait for this entry to be committed 
@@ -551,6 +557,7 @@ running = True
 def stop_running():
     global running
     debug_print("Running timeout")
+    debug_print("Track Statistics: {} fast, {} normal".format(num_fast_path,num_normal_path))
     running = False
 
 # To time proposal turnaround time
