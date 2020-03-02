@@ -319,7 +319,7 @@ def AppendEntriesResp(response):
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
         if len(greater_index) > len(members)/2:
-            debug_print("committing to {}".format(i))
+            debug_print("committing to {} on normal path".format(i))
             global num_normal_path
             num_normal_path += 1
             new_commit_index = i
@@ -387,6 +387,7 @@ def update_entries():
             commitIndex = k
             global num_fast_path
             num_fast_path+= 1
+            debug_print("Committing on fast path")
             notify(log[k].proposer, log[k])
             k += 1
         else: # Wait for this entry to be committed 
