@@ -387,7 +387,7 @@ def update_entries():
             commitIndex = k
             global num_fast_path
             num_fast_path+= 1
-            debug_print("Committing on fast path")
+            debug_print("Committing index {} on fast path".format(k))
             notify(log[k].proposer, log[k])
             k += 1
         else: # Wait for this entry to be committed 
