@@ -230,11 +230,12 @@ def AppendEntries(request):
         print("appended entry: {} to log in index {}".format(entry.data, index))
         i += 1
 
+    commitLock.acquire()
     oldCommitIndex = commitIndex
     commitIndex = min(request.leaderCommit, len(log) -1)
     if commitIndex > oldCommitIndex:
         debug_print("committing to {}".format(commitIndex))
-
+    commitLock.release()
     ack(True, request.leaderId)
 
 
@@ -365,6 +366,7 @@ def update_entries():
     global commitIndex, possibleEntries
 
     # Fast-track commit check
+    commitLock.acquire()
     k = commitIndex+1
     while(len(possibleEntries) > k and
           sum(x is not None for x in possibleEntries[k]) > len(members)/2):
@@ -380,7 +382,7 @@ def update_entries():
 
         # If Fast-track succeeded
         if count >= math.ceil(3.0*len(members)/4.0):
-            commitLock.acquire()
+            
             # Remove e from possibleEntries
             for j in range(k+1, len(possibleEntries)):
                 for i in range(0,len(members)):
@@ -394,9 +396,10 @@ def update_entries():
             debug_print("Committing index {} on fast path".format(k))
             notify(log[k].proposer, log[k])
             k += 1
-            commitLock.release()
+
         else: # Wait for this entry to be committed 
             break
+    commitLock.release()
 
     global poss_timer
     poss_timer = threading.Timer(75/1000.0, poss_timeout) 
