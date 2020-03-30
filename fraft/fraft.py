@@ -67,6 +67,8 @@ class VoteRequest():
 DEBUG = True
 num_normal_path = 0
 num_fast_path = 0
+commitLock = threading.Lock()
+
 # Stable storage of all servers as defined in the fRaft paper.
 currentTerm = 0;
 log = [LogEntry(data = "NULL", term = 0, appendedBy = True, proposer="")];
@@ -315,6 +317,7 @@ def AppendEntriesResp(response):
         nextIndex[server] = len(log)
         matchIndex[server] = len(log)-1
 
+    commitLock.acquire()
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
@@ -326,6 +329,7 @@ def AppendEntriesResp(response):
             # Notify proposer
             notify(log[i].proposer, log[i])
     commitIndex = new_commit_index
+    commitLock.release()
 
 def most_frequent(List): 
     List = [x for x in List if x is not None]
@@ -376,7 +380,7 @@ def update_entries():
 
         # If Fast-track succeeded
         if count >= math.ceil(3.0*len(members)/4.0):
-             
+            commitLock.acquire()
             # Remove e from possibleEntries
             for j in range(k+1, len(possibleEntries)):
                 for i in range(0,len(members)):
@@ -390,6 +394,7 @@ def update_entries():
             debug_print("Committing index {} on fast path".format(k))
             notify(log[k].proposer, log[k])
             k += 1
+            commitLock.release()
         else: # Wait for this entry to be committed 
             break
 
