@@ -427,13 +427,16 @@ def become_leader(level=0):
 
 appended_members = {}
 appending = False
+
 def global_update_everyone(entry, index):
     global members, appended_members, appending
 
     appending = True
     while len(appended_members) <= len(members[0])/2:
         for server in members[0]:
-            response = Message("AppendEntry", Entry(entry = entry, index = index))
+            new_message = Message("AppendEntry", Entry(entry = entry, index = index))
+            message_string = pickle.dumps(new_message)
+            sock.sendto(message_string, server)
         time.sleep(50/1000)
 
     appending = False
