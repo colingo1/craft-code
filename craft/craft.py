@@ -259,7 +259,7 @@ def AppendEntries(request,level=0):
 
 def AppendEntry(request):
     insert_log(request.entry, request.index, True, 1)
-    ack_append(True, request.leaderId, 1)
+    ack_append(True, leaderId[0], 1)
 
 #def RequestVote(self,request,context):
 #    global currentTerm, commitIndex
