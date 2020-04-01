@@ -548,7 +548,7 @@ repropose_time = [True, True]
 def repropose_timeout(level):
     global repropose_time
     repropose_time[level] = True
-repropose_timer = None 
+repropose_timer = [None, None]
 
 # Used by leader to determine if it is time to send out heartbeat
 update_poss = [False, False]
