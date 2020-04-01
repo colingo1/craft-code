@@ -284,7 +284,10 @@ def Notified(request,level=0):
     t = start_times[level][request.entry.data]
     elapsed_time = time.time() - t
     propose_time = True
-    del repropose_log[level][request.entry.data]
+    try:
+        del repropose_log[level][request.entry.data]
+    except:
+        pass
 
 
 def send_append_entries(server,level=0):
