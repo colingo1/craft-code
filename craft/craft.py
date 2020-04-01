@@ -403,7 +403,7 @@ def update_entries(level=0):
     if level == 0:
         poss_timer[level] = threading.Timer(75/1000.0, poss_timeout, (level,)) 
     else:
-        poss_timer[level] = threading.Timer(200/1000.0, poss_timeout, (level,)) 
+        poss_timer[level] = threading.Timer(75/1000.0, poss_timeout, (level,)) 
     poss_timer[level].start()
 
 def update_everyone(level=0):
@@ -420,7 +420,7 @@ def update_everyone(level=0):
         heartbeat_timer[level] = threading.Timer(100/1000.0, 
                 heartbeat_timeout, (level,)) 
     else:
-        heartbeat_timer[level] = threading.Timer(300/1000.0, 
+        heartbeat_timer[level] = threading.Timer(100/1000.0, 
                 heartbeat_timeout, (level,)) 
     heartbeat_timer[level].start()
 
