@@ -400,8 +400,11 @@ def update_entries(level=0):
             break
 
     global poss_timer
-    poss_timer = threading.Timer(75/1000.0, poss_timeout) 
-    poss_timer.start()
+    if level == 0:
+        poss_timer[level] = threading.Timer(75/1000.0, poss_timeout, (level,)) 
+    else:
+        poss_timer[level] = threading.Timer(200/1000.0, poss_timeout, (level,)) 
+    poss_timer[level].start()
 
 def update_everyone(level=0):
     global commitIndex, possibleEntries, proposal_count
@@ -413,8 +416,13 @@ def update_everyone(level=0):
         send_append_entries(server,level)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
-    heartbeat_timer.start()
+    if level == 0:
+        heartbeat_timer[level] = threading.Timer(100/1000.0, 
+                heartbeat_timeout, (level,)) 
+    else:
+        heartbeat_timer[level] = threading.Timer(300/1000.0, 
+                heartbeat_timeout, (level,)) 
+    heartbeat_timer[level].start()
 
 
 def become_leader(level=0):
@@ -537,28 +545,25 @@ Timer stop functions
 
 # For reproposing entries
 repropose_time = [True, True]
-def repropose_timeout():
+def repropose_timeout(level):
     global repropose_time
-    for level in range(0,1):
-        repropose_time[level] = True
+    repropose_time[level] = True
 repropose_timer = None 
 
 # Used by leader to determine if it is time to send out heartbeat
 update_poss = [False, False]
-def poss_timeout():
+def poss_timeout(level):
     global update_poss
-    for level in range(0,1):
-        update_poss[level] = True
-poss_timer = None 
+    update_poss[level] = True
+poss_timer = [None,None]
 
 # Used by leader to determine if it is time to send out heartbeat
 update = [False, False]
-def heartbeat_timeout():
+def heartbeat_timeout(level):
     global update
     debug_print("Heartbeat timeout")
-    for level in range(0,1):
-        update[level] = True
-heartbeat_timer = None 
+    update[level] = True
+heartbeat_timer = [None, None]
 
 # Used by all to determine if we want to propose a new entry 
 propose_time = False
@@ -606,8 +611,13 @@ def main(args):
                         propose_all(entry, index, level)
                 except: # if dictionary changes sizes in middle of run, don't panic
                     pass
-                repropose_timer = threading.Timer(1000/1000.0, repropose_timeout) 
-                repropose_timer.start()
+                if level == 0:
+                    repropose_timer[level] = threading.Timer(250/1000.0, 
+                            repropose_timeout, (level,)) 
+                else:
+                    repropose_timer[level] = threading.Timer(1000/1000.0, 
+                            repropose_timeout, (level,)) 
+                repropose_timer[level].start()
             if current_state[level] == "leader" and update_poss[level]:
                 update_poss[level] = False
                 update_entries(level)

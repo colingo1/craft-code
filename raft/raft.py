@@ -267,7 +267,7 @@ def update_everyone():
         send_append_entries(server)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
+    heartbeat_timer = threading.Timer(300/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
@@ -406,11 +406,14 @@ def main(args):
     
     while running:
         if repropose_time and args[1] == "propose":
-            repropose_time = False
-            for entry,index in repropose_log.values():
-                if index >= len(log):
-                    propose(entry, leaderId)
-            repropose_timer = threading.Timer(150/1000.0, repropose_timeout) 
+            try:
+                repropose_time = False
+                for entry,index in repropose_log.values():
+                    if index >= len(log):
+                        propose(entry, leaderId)
+            except: # if dictionary changes sizes in middle of run, don't panic
+                pass
+            repropose_timer = threading.Timer(1000/1000.0, repropose_timeout) 
             repropose_timer.start()
         if current_state == "leader" and update:
             update = False
