@@ -407,6 +407,7 @@ def update_entries(level=0):
 
             # Update commitIndex and notify client
             commitIndex[level] = k
+            debug_print("committing to {}".format(k))
             if level == 0:
                 proposal_count += 1
             notify(log[level][k].proposer, log[level][k])
@@ -622,12 +623,13 @@ def main(args):
     while running:
         for level in range(0,1):
             if repropose_time[level] and args[1] == "propose":
-                try:
-                    repropose_time[level] = False
-                    for entry,index in repropose_log[level].values():
-                        propose_all(entry, index, level)
-                except: # if dictionary changes sizes in middle of run, don't panic
-                    pass
+                propose_time = True 
+                #try:
+                #    repropose_time[level] = False
+                #    for entry,index in repropose_log[level].values():
+                #        propose_all(entry, index, level)
+                #except: # if dictionary changes sizes in middle of run, don't panic
+                #    pass
                 if level == 0:
                     repropose_timer[level] = threading.Timer(250/1000.0, 
                             repropose_timeout, (level,)) 
