@@ -326,6 +326,7 @@ def AppendEntriesResp(response):
         send_append_entries(server,level)
     if response.success:
         nextIndex[level][server] = len(log[level])
+        print("Set %s nextIndex to %d" % (server, len(log[level])))
         matchIndex[level][server] = len(log[level])-1
 
     commitLock.acquire()
