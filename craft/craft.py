@@ -251,14 +251,14 @@ def AppendEntries(request,level=0):
         i += 1
 
     commitLock.acquire()
-    print("Lock acquired by", threading.get_ident())
+    print("1 Lock acquired by", threading.get_ident())
     global commitIndex
     oldCommitIndex = commitIndex[level]
     commitIndex[level] = min(request.leaderCommit, len(log[level]) -1)
     if commitIndex[level] > oldCommitIndex:
         debug_print("committing to {} at level {}".format(commitIndex[level], level))
 
-    print("Lock released by", threading.get_ident())
+    print("1 Lock released by", threading.get_ident())
     commitLock.release()
     ack(True, request.leaderId, level)
 
@@ -329,7 +329,7 @@ def AppendEntriesResp(response):
         matchIndex[level][server] = len(log[level])-1
 
     commitLock.acquire()
-    print("Lock acquired by", threading.get_ident())
+    print("2 Lock acquired by", threading.get_ident())
     global commitIndex
     new_commit_index = commitIndex[level]
     for i in range(commitIndex[level]+1,len(log[level])):
@@ -342,7 +342,7 @@ def AppendEntriesResp(response):
             if level == 0:
                 proposal_count += 1
     commitIndex[level] = new_commit_index
-    print("Lock released by", threading.get_ident())
+    print("2 Lock released by", threading.get_ident())
     commitLock.release()
 
 def most_frequent(List): 
@@ -377,7 +377,7 @@ def notify(server, entry):
 
 def update_entries(level=0):
     commitLock.acquire()
-    print("Lock acquired by", threading.get_ident())
+    print("3 Lock acquired by", threading.get_ident())
     global commitIndex, possibleEntries, proposal_count
 
     # Fast-track commit check
@@ -414,7 +414,7 @@ def update_entries(level=0):
             k += 1
         else: # Wait for this entry to be committed 
             break
-    print("Lock released by", threading.get_ident())
+    print("4 Lock released by", threading.get_ident())
     commitLock.release()
 
     global poss_timer
