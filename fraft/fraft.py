@@ -213,8 +213,11 @@ def AppendEntries(request):
         #election_timer = threading.Timer(randTime/100.0, election_timeout) 
         #election_timer.start()
 
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     if request.term > currentTerm:
-        global current_state, commitIndex
+        global current_state
         current_state = "follower"
         currentTerm = request.term
         debug_print("Sending uncommitted entries to {}".format(request.leaderId))
@@ -230,9 +233,6 @@ def AppendEntries(request):
         print("appended entry: {} to log in index {}".format(entry.data, index))
         i += 1
 
-    commitLock.acquire()
-    print("Lock acquired by", threading.get_ident())
-    global commitIndex
     oldCommitIndex = commitIndex
     commitIndex = min(request.leaderCommit, len(log) -1)
     if commitIndex > oldCommitIndex:
