@@ -303,7 +303,7 @@ def send_append_entries(server,level=0):
     if len(log[level]) > prev_index and prev_index >= 0:
         prev_term = log[level][prev_index].term 
     entries = log[level][prev_index+1:]
-    debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
+    debug_print("Sending AppendEntries to {} with prev_index {} at level {}".format(server,prev_index,level))
     new_message = None
     if level == 0:
         new_message = Message("AppendEntries",Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex[level]))
@@ -326,7 +326,7 @@ def AppendEntriesResp(response):
         send_append_entries(server,level)
     if response.success:
         nextIndex[level][server] = len(log[level])
-        print("Set %s nextIndex to %d" % (server, len(log[level])))
+        print("Set %s nextIndex level %d to %d" % (server, level, len(log[level])))
         matchIndex[level][server] = len(log[level])-1
 
     commitLock.acquire()
@@ -339,7 +339,9 @@ def AppendEntriesResp(response):
             debug_print("committing to {}".format(i))
             new_commit_index = i
             # Notify proposer
+            debug_print("Notifying proposer")
             notify(log[level][i].proposer, log[level][i])
+            debug_print("Done notifying proposer")
             if level == 0:
                 proposal_count += 1
     commitIndex[level] = new_commit_index
