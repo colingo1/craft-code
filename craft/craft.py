@@ -222,6 +222,7 @@ def AppendEntries(request,level=0):
     if first:
         first = False
         propose_time = True
+        print("Start running timer")
         run = threading.Timer(60*3, stop_running)
         run.start()
 
@@ -626,6 +627,7 @@ def main(args):
         become_leader(1)
     
     while running:
+        print("Num threads:",threading.active_count())
         for level in range(0,1):
             #if repropose_time[level] and args[1] == "propose":
             #    #propose_time = True 
