@@ -67,6 +67,7 @@ class VoteRequest():
         self.lastLogTerm = lastLogTerm;
 
 DEBUG = True
+commitLock = threading.Lock()
 # Stable storage of all servers as defined in the cRaft paper.
 currentTerm = 0;
 log = [[LogEntry(data = "NULL", term = 0, appendedBy = True, proposer="")],
@@ -215,7 +216,7 @@ def GlobalAppendEntries(request):
     AppendEntries(request,1)
 
 def AppendEntries(request,level=0):
-    global log, commitIndex, currentTerm
+    global log, currentTerm
     global timer, first, run, propose_time
 
     if first:
@@ -231,6 +232,9 @@ def AppendEntries(request,level=0):
     #    return ack(False)
     leaderId[level] = request.leaderId
 
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     if request.term > currentTerm:
         global current_state
         current_state[level] = "follower"
@@ -255,6 +259,8 @@ def AppendEntries(request,level=0):
     if commitIndex[level] > oldCommitIndex:
         debug_print("committing to {} at level {}".format(commitIndex[level], level))
 
+    print("Lock released by", threading.get_ident())
+    commitLock.release()
     ack(True, request.leaderId, level)
 
 def AppendEntry(request):
@@ -308,7 +314,7 @@ def send_append_entries(server,level=0):
     sock.sendto(message_string, server)
 
 def AppendEntriesResp(response):
-    global nextIndex, matchIndex, commitIndex, currentTerm, proposal_count
+    global nextIndex, matchIndex, currentTerm, proposal_count
     level = response.level
     server = response.server
     if response.term > currentTerm:
@@ -323,6 +329,9 @@ def AppendEntriesResp(response):
         nextIndex[level][server] = len(log[level])
         matchIndex[level][server] = len(log[level])-1
 
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     new_commit_index = commitIndex[level]
     for i in range(commitIndex[level]+1,len(log[level])):
         greater_index = [index for index in matchIndex[level].values() if index >= i]
@@ -334,6 +343,8 @@ def AppendEntriesResp(response):
             if level == 0:
                 proposal_count += 1
     commitIndex[level] = new_commit_index
+    print("Lock released by", threading.get_ident())
+    commitLock.release()
 
 def most_frequent(List): 
     List = [x for x in List if x is not None]
@@ -366,6 +377,8 @@ def notify(server, entry):
     sock.sendto(message_string, server)
 
 def update_entries(level=0):
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
     global commitIndex, possibleEntries, proposal_count
 
     # Fast-track commit check
@@ -401,6 +414,8 @@ def update_entries(level=0):
             k += 1
         else: # Wait for this entry to be committed 
             break
+    print("Lock released by", threading.get_ident())
+    commitLock.release()
 
     global poss_timer
     if level == 0:
