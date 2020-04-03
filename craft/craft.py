@@ -125,7 +125,7 @@ first = True
 
 def debug_print(m):
     if DEBUG:
-        print(str(time.time())+": "+m)
+        print(str(time.time())+": "+str(m))
 
 debug_print(members)
 debug_print(this_id)
