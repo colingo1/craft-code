@@ -231,18 +231,14 @@ def AppendEntries(request,level=0):
     #if not term_equal(request.prevLogIndex, request.prevLogTerm):
     #    return ack(False)
     leaderId[level] = request.leaderId
-
-    commitLock.acquire()
-    print("Lock acquired by", threading.get_ident())
-    global commitIndex
-    if request.term > currentTerm:
-        global current_state
-        current_state[level] = "follower"
-        currentTerm = request.term
-        debug_print("Sending uncommitted entries to {}".format(request.leaderId))
-        # This is a new leader, need to send uncommitted entries
-        for i in range(commitIndex[level]+1, len(log[level])):
-            propose(log[level][i], i, request.leaderId, level)
+    #if request.term > currentTerm:
+    #    global current_state
+    #    current_state[level] = "follower"
+    #    currentTerm = request.term
+    #    debug_print("Sending uncommitted entries to {}".format(request.leaderId))
+    #    # This is a new leader, need to send uncommitted entries
+    #    for i in range(commitIndex[level]+1, len(log[level])):
+    #        propose(log[level][i], i, request.leaderId, level)
     
     # Overwrite existing entries
     i = 1
@@ -254,6 +250,9 @@ def AppendEntries(request,level=0):
         print("appended entry: {} to log in index {}".format(entry.data, index))
         i += 1
 
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     oldCommitIndex = commitIndex[level]
     commitIndex[level] = min(request.leaderCommit, len(log[level]) -1)
     if commitIndex[level] > oldCommitIndex:
@@ -623,13 +622,12 @@ def main(args):
     while running:
         for level in range(0,1):
             if repropose_time[level] and args[1] == "propose":
-                propose_time = True
-                #try:
-                #    repropose_time[level] = False
-                #    for entry,index in repropose_log[level].values():
-                #        propose_all(entry, index, level)
-                #except: # if dictionary changes sizes in middle of run, don't panic
-                #    pass
+                try:
+                    repropose_time[level] = False
+                    for entry,index in repropose_log[level].values():
+                        propose_all(entry, index, level)
+                except: # if dictionary changes sizes in middle of run, don't panic
+                    pass
                 if level == 0:
                     repropose_timer[level] = threading.Timer(250/1000.0, 
                             repropose_timeout, (level,)) 
