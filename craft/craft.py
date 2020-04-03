@@ -627,21 +627,21 @@ def main(args):
     
     while running:
         for level in range(0,1):
-            if repropose_time[level] and args[1] == "propose":
-                #propose_time = True 
-                #try:
-                #    repropose_time[level] = False
-                #    for entry,index in repropose_log[level].values():
-                #        propose_all(entry, index, level)
-                #except: # if dictionary changes sizes in middle of run, don't panic
-                #    pass
-                if level == 0:
-                    repropose_timer[level] = threading.Timer(250/1000.0, 
-                            repropose_timeout, (level,)) 
-                else:
-                    repropose_timer[level] = threading.Timer(250/1000.0, 
-                            repropose_timeout, (level,)) 
-                repropose_timer[level].start()
+            #if repropose_time[level] and args[1] == "propose":
+            #    #propose_time = True 
+            #    #try:
+            #    #    repropose_time[level] = False
+            #    #    for entry,index in repropose_log[level].values():
+            #    #        propose_all(entry, index, level)
+            #    #except: # if dictionary changes sizes in middle of run, don't panic
+            #    #    pass
+            #    if level == 0:
+            #        repropose_timer[level] = threading.Timer(250/1000.0, 
+            #                repropose_timeout, (level,)) 
+            #    else:
+            #        repropose_timer[level] = threading.Timer(250/1000.0, 
+            #                repropose_timeout, (level,)) 
+            #    repropose_timer[level].start()
             if current_state[level] == "leader" and update_poss[level]:
                 update_poss[level] = False
                 update_entries(level)
