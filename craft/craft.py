@@ -188,7 +188,7 @@ def GlobalReceivePropose(request):
 def ReceivePropose(request,level=0):
     global log, possibleEntries, members, leaderId, current_state
 
-    debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
+    debug_print("Received Proposal from {} for index {} at level {}".format(request.proposer,request.index,level))
     if request.index >= len(log[level]) or log[level][request.index] == None:
         insert_log(request.entry, request.index, False, level)
         if level == 1:
@@ -225,7 +225,7 @@ def AppendEntries(request,level=0):
         run = threading.Timer(60*3, stop_running)
         run.start()
 
-    debug_print("Received AppendEntries from {}".format(request.leaderId))
+    debug_print("Received AppendEntries from {} at level {}".format(request.leaderId,level))
     if request.term < currentTerm:
         ack(False, request.leaderId, level)
     #if not term_equal(request.prevLogIndex, request.prevLogTerm):
@@ -247,7 +247,7 @@ def AppendEntries(request,level=0):
         insert_log(entry, index, True, level)
         if level == 1:
             global_update_everyone(entry, index)
-        print("appended entry: {} to log in index {}".format(entry.data, index))
+        print("appended entry: {} to log in index {} at level {}".format(entry.data, index,level))
         i += 1
 
     commitLock.acquire()
@@ -260,7 +260,7 @@ def AppendEntries(request,level=0):
 
     print("1 Lock released by", threading.get_ident())
     commitLock.release()
-    print("Sending ACK to {}".format(request.leaderId))
+    print("Sending ACK to {} at level {}".format(request.leaderId,level))
     ack(True, request.leaderId, level)
 
 def AppendEntry(request):
@@ -314,10 +314,10 @@ def send_append_entries(server,level=0):
     sock.sendto(message_string, server)
 
 def AppendEntriesResp(response):
-    debug_print("Received AppendEntriesResp from {}".format(response.server))
     global nextIndex, matchIndex, currentTerm, proposal_count
     level = response.level
     server = response.server
+    debug_print("Received AppendEntriesResp from {} at level {}".format(server,level))
     if response.term > currentTerm:
         global current_state
         currentTerm = response.term
@@ -338,7 +338,7 @@ def AppendEntriesResp(response):
     for i in range(commitIndex[level]+1,len(log[level])):
         greater_index = [index for index in matchIndex[level].values() if index >= i]
         if len(greater_index) > len(members[level])/2:
-            debug_print("committing to {}".format(i))
+            debug_print("committing to {} at level {}".format(i,level))
             new_commit_index = i
             # Notify proposer
             debug_print("Notifying proposer")
@@ -412,7 +412,7 @@ def update_entries(level=0):
 
             # Update commitIndex and notify client
             commitIndex[level] = k
-            debug_print("committing to {}".format(k))
+            debug_print("committing to {} at level {}".format(k,level))
             if level == 0:
                 proposal_count += 1
             notify(log[level][k].proposer, log[level][k])
