@@ -65,6 +65,10 @@ class VoteRequest():
         self.lastLogTerm = lastLogTerm;
 
 DEBUG = True
+num_normal_path = 0
+num_fast_path = 0
+commitLock = threading.Lock()
+
 # Stable storage of all servers as defined in the fRaft paper.
 currentTerm = 0;
 log = [LogEntry(data = "NULL", term = 0, appendedBy = True, proposer="")];
@@ -184,7 +188,7 @@ def ReceivePropose(request):
         propose(log[request.index], request.index, leaderId)
 
 def AppendEntries(request):
-    global log, commitIndex, currentTerm, leaderId
+    global log, currentTerm, leaderId
     global election_timer, first, run, propose_time, joining
 
     if first:
@@ -210,7 +214,7 @@ def AppendEntries(request):
         #election_timer.start()
 
     if request.term > currentTerm:
-        global current_state
+        global current_state, commitIndex
         current_state = "follower"
         currentTerm = request.term
         debug_print("Sending uncommitted entries to {}".format(request.leaderId))
@@ -226,11 +230,15 @@ def AppendEntries(request):
         print("appended entry: {} to log in index {}".format(entry.data, index))
         i += 1
 
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     oldCommitIndex = commitIndex
     commitIndex = min(request.leaderCommit, len(log) -1)
     if commitIndex > oldCommitIndex:
         debug_print("committing to {}".format(commitIndex))
-
+    print("Lock released by", threading.get_ident())
+    commitLock.release()
     ack(True, request.leaderId)
 
 
@@ -286,7 +294,7 @@ def send_append_entries(server):
 
 
 def AppendEntriesResp(response):
-    global nextIndex, matchIndex, commitIndex, currentTerm, log, memberTimeout
+    global nextIndex, matchIndex, currentTerm, log, memberTimeout
     server = response.server
     memberTimeout[server] = 0
     
@@ -313,15 +321,22 @@ def AppendEntriesResp(response):
         nextIndex[server] = len(log)
         matchIndex[server] = len(log)-1
 
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
         if len(greater_index) > len(members)/2:
-            debug_print("committing to {}".format(i))
+            debug_print("committing to {} on normal path".format(i))
+            global num_normal_path
+            num_normal_path += 1
             new_commit_index = i
             # Notify proposer
             notify(log[i].proposer, log[i])
     commitIndex = new_commit_index
+    print("Lock released by", threading.get_ident())
+    commitLock.release()
 
 def most_frequent(List): 
     List = [x for x in List if x is not None]
@@ -354,9 +369,11 @@ def notify(server, entry):
     sock.sendto(message_string, server)
 
 def update_entries():
+    # Fast-track commit check
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
     global commitIndex, possibleEntries
 
-    # Fast-track commit check
     k = commitIndex+1
     while(len(possibleEntries) > k and
           sum(x is not None for x in possibleEntries[k]) > len(members)/2):
@@ -372,7 +389,7 @@ def update_entries():
 
         # If Fast-track succeeded
         if count >= math.ceil(3.0*len(members)/4.0):
-             
+            
             # Remove e from possibleEntries
             for j in range(k+1, len(possibleEntries)):
                 for i in range(0,len(members)):
@@ -381,10 +398,16 @@ def update_entries():
 
             # Update commitIndex and notify client
             commitIndex = k
+            global num_fast_path
+            num_fast_path+= 1
+            debug_print("Committing index {} on fast path".format(k))
             notify(log[k].proposer, log[k])
             k += 1
+
         else: # Wait for this entry to be committed 
             break
+    print("Lock released by", threading.get_ident())
+    commitLock.release()
 
     global poss_timer
     poss_timer = threading.Timer(75/1000.0, poss_timeout) 
@@ -551,6 +574,7 @@ running = True
 def stop_running():
     global running
     debug_print("Running timeout")
+    debug_print("Track Statistics: {} fast, {} normal".format(num_fast_path,num_normal_path))
     running = False
 
 # To time proposal turnaround time
