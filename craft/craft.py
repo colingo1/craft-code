@@ -260,6 +260,7 @@ def AppendEntries(request,level=0):
 
     print("1 Lock released by", threading.get_ident())
     commitLock.release()
+    print("Sending ACK to {}".format(request.leaderId))
     ack(True, request.leaderId, level)
 
 def AppendEntry(request):
@@ -313,6 +314,7 @@ def send_append_entries(server,level=0):
     sock.sendto(message_string, server)
 
 def AppendEntriesResp(response):
+    debug_print("Received AppendEntriesResp from {}".format(response.server))
     global nextIndex, matchIndex, currentTerm, proposal_count
     level = response.level
     server = response.server
