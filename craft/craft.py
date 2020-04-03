@@ -125,7 +125,7 @@ first = True
 
 def debug_print(m):
     if DEBUG:
-        print(m)
+        print(time.time()+": "+m)
 
 debug_print(members)
 debug_print(this_id)
@@ -222,7 +222,7 @@ def AppendEntries(request,level=0):
     if first:
         first = False
         propose_time = True
-        print("Start running timer")
+        debug_print("Start running timer")
         run = threading.Timer(60*3, stop_running)
         run.start()
 
@@ -248,20 +248,20 @@ def AppendEntries(request,level=0):
         insert_log(entry, index, True, level)
         if level == 1:
             global_update_everyone(entry, index)
-        print("appended entry: {} to log in index {} at level {}".format(entry.data, index,level))
+        debug_print("appended entry: {} to log in index {} at level {}".format(entry.data, index,level))
         i += 1
 
     commitLock.acquire()
-    print("1 Lock acquired by", threading.get_ident())
+    debug_print("1 Lock acquired by", threading.get_ident())
     global commitIndex
     oldCommitIndex = commitIndex[level]
     commitIndex[level] = min(request.leaderCommit, len(log[level]) -1)
     if commitIndex[level] > oldCommitIndex:
         debug_print("committing to {} at level {}".format(commitIndex[level], level))
 
-    print("1 Lock released by", threading.get_ident())
+    debug_print("1 Lock released by", threading.get_ident())
     commitLock.release()
-    print("Sending ACK to {} at level {}".format(request.leaderId,level))
+    debug_print("Sending ACK to {} at level {}".format(request.leaderId,level))
     ack(True, request.leaderId, level)
 
 def AppendEntry(request):
@@ -329,11 +329,11 @@ def AppendEntriesResp(response):
         send_append_entries(server,level)
     if response.success:
         nextIndex[level][server] = len(log[level])
-        print("Set %s nextIndex level %d to %d" % (server, level, len(log[level])))
+        debug_print("Set %s nextIndex level %d to %d" % (server, level, len(log[level])))
         matchIndex[level][server] = len(log[level])-1
 
     commitLock.acquire()
-    print("2 Lock acquired by", threading.get_ident())
+    debug_print("2 Lock acquired by", threading.get_ident())
     global commitIndex
     new_commit_index = commitIndex[level]
     for i in range(commitIndex[level]+1,len(log[level])):
@@ -348,7 +348,7 @@ def AppendEntriesResp(response):
             if level == 0:
                 proposal_count += 1
     commitIndex[level] = new_commit_index
-    print("2 Lock released by", threading.get_ident())
+    debug_print("2 Lock released by", threading.get_ident())
     commitLock.release()
 
 def most_frequent(List): 
@@ -383,7 +383,7 @@ def notify(server, entry):
 
 def update_entries(level=0):
     commitLock.acquire()
-    print("3 Lock acquired by", threading.get_ident())
+    debug_print("3 Lock acquired by", threading.get_ident())
     global commitIndex, possibleEntries, proposal_count
 
     # Fast-track commit check
@@ -420,7 +420,7 @@ def update_entries(level=0):
             k += 1
         else: # Wait for this entry to be committed 
             break
-    print("4 Lock released by", threading.get_ident())
+    debug_print("4 Lock released by", threading.get_ident())
     commitLock.release()
 
     global poss_timer
@@ -627,7 +627,6 @@ def main(args):
         become_leader(1)
     
     while running:
-        print("Num threads:",threading.active_count())
         for level in range(0,1):
             #if repropose_time[level] and args[1] == "propose":
             #    #propose_time = True 
