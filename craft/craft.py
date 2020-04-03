@@ -628,7 +628,7 @@ def main(args):
     while running:
         for level in range(0,1):
             if repropose_time[level] and args[1] == "propose":
-                propose_time = True 
+                #propose_time = True 
                 #try:
                 #    repropose_time[level] = False
                 #    for entry,index in repropose_log[level].values():
