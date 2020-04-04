@@ -266,6 +266,7 @@ def AppendEntries(request,level=0):
     ack(True, request.leaderId, level)
 
 def AppendEntry(request):
+    debug_print("Appending Global entry at index {}".format(request.index))
     insert_log(request.entry, request.index, True, 1)
     ack_append(True, leaderId[0], 1)
 
@@ -464,6 +465,7 @@ appending = False
 def global_update_everyone(entry, index):
     global members, appended_members, appending
 
+    debug_print("Updating globally for index {}".format(index))
     appending = True
     while len(appended_members) <= len(members[0])/2:
         for server in members[0]:
@@ -472,6 +474,7 @@ def global_update_everyone(entry, index):
             sock.sendto(message_string, server)
         time.sleep(50/1000)
 
+    debug_print("Done global update for {}".format(index))
     appending = False
     appended_members = {}
 
