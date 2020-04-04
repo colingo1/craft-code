@@ -160,7 +160,7 @@ def insert_log(entry, index, appendedBy, level):
     global log
     while len(log[level]) <= index:
         log[level].append(None)
-    if entry not None:
+    if entry is not None:
         entry.appendedBy = appendedBy
     log[level][index] = entry
 
