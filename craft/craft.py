@@ -249,7 +249,7 @@ def AppendEntries(request,level=0):
         insert_log(entry, index, True, level)
         if level == 1:
             global_update_everyone(entry, index)
-        debug_print("appended entry: {} to log in index {} at level {}".format(entry.data, index,level))
+        #debug_print("appended entry: {} to log in index {} at level {}".format(entry.data, index,level))
         i += 1
 
     commitLock.acquire()
