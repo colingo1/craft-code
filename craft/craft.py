@@ -160,7 +160,8 @@ def insert_log(entry, index, appendedBy, level):
     global log
     while len(log[level]) <= index:
         log[level].append(None)
-    entry.appendedBy = appendedBy
+    if entry not None:
+        entry.appendedBy = appendedBy
     log[level][index] = entry
 
 def propose(entry, index, server, level=0): 
