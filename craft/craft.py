@@ -53,11 +53,12 @@ class Entries():
         self.leaderCommit = leaderCommit;
 
 class Ack():
-    def __init__(self, term, success, server, level):
+    def __init__(self, term, success, server, level, index=-1):
         self.term = term;
         self.success = success;
         self.server = server
         self.level = level
+        self.index = index
 
 class VoteRequest():
     def __init__(self, term, candidateId, lastLogIndex, lastLogTerm):
@@ -137,10 +138,11 @@ def print_log():
         
         print("{}\t{}\t{}".format(i,log[i].term,log[i].data))
 
-def ack_append(success, server, level=0):
+def ack_append(success, server, level=0, index):
     global sock
     new_message = Message("ACK_append", Ack(term = currentTerm, 
-                    success = success, server = this_id, level = level))
+                    success = success, server = this_id, level = level,
+                    index = index))
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
@@ -268,7 +270,7 @@ def AppendEntries(request,level=0):
 def AppendEntry(request):
     debug_print("Appending Global entry at index {}".format(request.index))
     insert_log(request.entry, request.index, True, 1)
-    ack_append(True, leaderId[0], 1)
+    ack_append(True, leaderId[0], 1, index=request.index)
 
 #def RequestVote(self,request,context):
 #    global currentTerm, commitIndex
