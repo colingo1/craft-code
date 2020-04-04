@@ -224,7 +224,7 @@ def AppendEntries(request,level=0):
         first = False
         propose_time = True
         debug_print("Start running timer")
-        run = threading.Timer(60*3, stop_running)
+        run = threading.Timer(60, stop_running)
         run.start()
 
     debug_print("Received AppendEntries from {} at level {}".format(request.leaderId,level))
