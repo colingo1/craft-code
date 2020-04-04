@@ -138,7 +138,7 @@ def print_log():
         
         print("{}\t{}\t{}".format(i,log[i].term,log[i].data))
 
-def ack_append(success, server, level=0, index):
+def ack_append(success, server, level=0, index=-1):
     global sock
     new_message = Message("ACK_append", Ack(term = currentTerm, 
                     success = success, server = this_id, level = level,
