@@ -69,6 +69,7 @@ class VoteRequest():
 
 DEBUG = True
 commitLock = threading.Lock()
+appendedLock = threading.Lock()
 # Stable storage of all servers as defined in the cRaft paper.
 currentTerm = 0;
 log = [[LogEntry(data = "NULL", term = 0, appendedBy = True, proposer="")],
@@ -464,14 +465,18 @@ def become_leader(level=0):
 appended_members = [{}]
 
 def global_update_everyone(entry, index):
-    global members, appended_members
+    global members, appended_members, appendedLock
 
     while index >= len(appended_members):
         appended_members.append({})
 
-    while len(appended_members[index]) <= len(members[0])/2:
+    while True:
+        appendedLock.acquire()
+        if len(appended_members[index]) > len(members[0])/2:
+            break
         debug_print("Updating globally for index {}, waiting on {}".format(
             index,appended_members[index]))
+        appendedLock.release()
         for server in members[0]:
             new_message = Message("AppendEntry", Entry(entry = entry, index = index))
             message_string = pickle.dumps(new_message)
@@ -481,8 +486,11 @@ def global_update_everyone(entry, index):
     debug_print("Done global update for {}".format(index))
 
 def AppendEntryResp(request):
+    global appendedLock
+    appendedLock.acquire()
     global appended_members
     appended_members[request.index][request.server] = True
+    appendedLock.release()
 
 #def hold_election():
 #    global currentTerm,matchIndex,current_state,commitIndex
