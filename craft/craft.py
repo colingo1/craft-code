@@ -475,8 +475,8 @@ def global_update_everyone(entry, index):
         if len(appended_members[index]) > len(members[1])/2:
             break
         debug_print("Updating globally for index {}, waiting on {}".format(
-        debug_print(len(appended_members[request.index]))
             index,appended_members[index]))
+        debug_print(len(appended_members[request.index]))
         appendedLock.release()
         for server in members[0]:
             new_message = Message("AppendEntry", Entry(entry = entry, index = index))
