@@ -475,6 +475,7 @@ def global_update_everyone(entry, index):
         if len(appended_members[index]) > len(members[1])/2:
             break
         debug_print("Updating globally for index {}, waiting on {}".format(
+        debug_print(len(appended_members[request.index]))
             index,appended_members[index]))
         appendedLock.release()
         for server in members[0]:
@@ -489,7 +490,9 @@ def AppendEntryResp(request):
     global appendedLock
     appendedLock.acquire()
     global appended_members
+    debug_print(len(appended_members[request.index]))
     appended_members[request.index][request.server] = True
+    debug_print(len(appended_members[request.index]))
     appendedLock.release()
 
 #def hold_election():
