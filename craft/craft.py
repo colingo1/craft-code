@@ -472,7 +472,7 @@ def global_update_everyone(entry, index):
 
     while True:
         appendedLock.acquire()
-        if len(appended_members[index]) > len(members[0])/2:
+        if len(appended_members[index]) > len(members[1])/2:
             break
         debug_print("Updating globally for index {}, waiting on {}".format(
             index,appended_members[index]))
