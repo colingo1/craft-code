@@ -470,19 +470,19 @@ def global_update_everyone(entry, index):
     while index >= len(appended_members):
         appended_members.append({})
 
-    while True:
-        appendedLock.acquire()
-        if len(appended_members[index]) > len(members[1])/2:
-            break
-        debug_print("Updating globally for index {}, waiting on {}".format(
-            index,appended_members[index]))
-        debug_print(len(appended_members[request.index]))
-        appendedLock.release()
-        for server in members[0]:
-            new_message = Message("AppendEntry", Entry(entry = entry, index = index))
-            message_string = pickle.dumps(new_message)
-            sock.sendto(message_string, server)
-        time.sleep(50/1000)
+    #while True:
+    #    appendedLock.acquire()
+    #    if len(appended_members[index]) > len(members[1])/2:
+    #        break
+    #    debug_print("Updating globally for index {}, waiting on {}".format(
+    #        index,appended_members[index]))
+    #    debug_print(len(appended_members[index]))
+    #    appendedLock.release()
+    for server in members[0]:
+        new_message = Message("AppendEntry", Entry(entry = entry, index = index))
+        message_string = pickle.dumps(new_message)
+        sock.sendto(message_string, server)
+     #   time.sleep(50/1000)
 
     debug_print("Done global update for {}".format(index))
 
