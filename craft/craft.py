@@ -53,11 +53,12 @@ class Entries():
         self.leaderCommit = leaderCommit;
 
 class Ack():
-    def __init__(self, term, success, server, level):
+    def __init__(self, term, success, server, level, index=-1):
         self.term = term;
         self.success = success;
         self.server = server
         self.level = level
+        self.index = index
 
 class VoteRequest():
     def __init__(self, term, candidateId, lastLogIndex, lastLogTerm):
@@ -67,6 +68,8 @@ class VoteRequest():
         self.lastLogTerm = lastLogTerm;
 
 DEBUG = True
+commitLock = threading.Lock()
+appendedLock = threading.Lock()
 # Stable storage of all servers as defined in the cRaft paper.
 currentTerm = 0;
 log = [[LogEntry(data = "NULL", term = 0, appendedBy = True, proposer="")],
@@ -124,7 +127,7 @@ first = True
 
 def debug_print(m):
     if DEBUG:
-        print(m)
+        print(str(time.time())+": "+str(m))
 
 debug_print(members)
 debug_print(this_id)
@@ -136,10 +139,11 @@ def print_log():
         
         print("{}\t{}\t{}".format(i,log[i].term,log[i].data))
 
-def ack_append(success, server, level=0):
+def ack_append(success, server, level=0, index=-1):
     global sock
     new_message = Message("ACK_append", Ack(term = currentTerm, 
-                    success = success, server = this_id, level = level))
+                    success = success, server = this_id, level = level,
+                    index = index))
     message_string = pickle.dumps(new_message)
     sock.sendto(message_string, server)
 
@@ -159,7 +163,8 @@ def insert_log(entry, index, appendedBy, level):
     global log
     while len(log[level]) <= index:
         log[level].append(None)
-    entry.appendedBy = appendedBy
+    if entry is not None:
+        entry.appendedBy = appendedBy
     log[level][index] = entry
 
 def propose(entry, index, server, level=0): 
@@ -187,7 +192,7 @@ def GlobalReceivePropose(request):
 def ReceivePropose(request,level=0):
     global log, possibleEntries, members, leaderId, current_state
 
-    debug_print("Received Proposal from {} for index {}".format(request.proposer,request.index))
+    debug_print("Received Proposal from {} for index {} at level {}".format(request.proposer,request.index,level))
     if request.index >= len(log[level]) or log[level][request.index] == None:
         insert_log(request.entry, request.index, False, level)
         if level == 1:
@@ -215,30 +220,30 @@ def GlobalAppendEntries(request):
     AppendEntries(request,1)
 
 def AppendEntries(request,level=0):
-    global log, commitIndex, currentTerm
+    global log, currentTerm
     global timer, first, run, propose_time
 
     if first:
         first = False
         propose_time = True
-        run = threading.Timer(60*3, stop_running)
+        debug_print("Start running timer")
+        run = threading.Timer(60, stop_running)
         run.start()
 
-    debug_print("Received AppendEntries from {}".format(request.leaderId))
+    debug_print("Received AppendEntries from {} at level {}".format(request.leaderId,level))
     if request.term < currentTerm:
         ack(False, request.leaderId, level)
     #if not term_equal(request.prevLogIndex, request.prevLogTerm):
     #    return ack(False)
     leaderId[level] = request.leaderId
-
-    if request.term > currentTerm:
-        global current_state
-        current_state[level] = "follower"
-        currentTerm = request.term
-        debug_print("Sending uncommitted entries to {}".format(request.leaderId))
-        # This is a new leader, need to send uncommitted entries
-        for i in range(commitIndex[level]+1, len(log[level])):
-            propose(log[level][i], i, request.leaderId, level)
+    #if request.term > currentTerm:
+    #    global current_state
+    #    current_state[level] = "follower"
+    #    currentTerm = request.term
+    #    debug_print("Sending uncommitted entries to {}".format(request.leaderId))
+    #    # This is a new leader, need to send uncommitted entries
+    #    for i in range(commitIndex[level]+1, len(log[level])):
+    #        propose(log[level][i], i, request.leaderId, level)
     
     # Overwrite existing entries
     i = 1
@@ -247,19 +252,26 @@ def AppendEntries(request,level=0):
         insert_log(entry, index, True, level)
         if level == 1:
             global_update_everyone(entry, index)
-        print("appended entry: {} to log in index {}".format(entry.data, index))
+        #debug_print("appended entry: {} to log in index {} at level {}".format(entry.data, index,level))
         i += 1
 
+    commitLock.acquire()
+    debug_print("1 Lock acquired by {}".format(threading.get_ident()))
+    global commitIndex
     oldCommitIndex = commitIndex[level]
     commitIndex[level] = min(request.leaderCommit, len(log[level]) -1)
     if commitIndex[level] > oldCommitIndex:
         debug_print("committing to {} at level {}".format(commitIndex[level], level))
 
+    debug_print("1 Lock released by {}".format(threading.get_ident()))
+    commitLock.release()
+    debug_print("Sending ACK to {} at level {}".format(request.leaderId,level))
     ack(True, request.leaderId, level)
 
 def AppendEntry(request):
+    debug_print("Appending Global entry at index {}".format(request.index))
     insert_log(request.entry, request.index, True, 1)
-    ack_append(True, request.leaderId, 1)
+    ack_append(True, leaderId[0], 1, index=request.index)
 
 #def RequestVote(self,request,context):
 #    global currentTerm, commitIndex
@@ -284,7 +296,10 @@ def Notified(request,level=0):
     t = start_times[level][request.entry.data]
     elapsed_time = time.time() - t
     propose_time = True
-    del repropose_log[level][request.entry.data]
+    try:
+        del repropose_log[level][request.entry.data]
+    except:
+        pass
 
 
 def send_append_entries(server,level=0):
@@ -295,7 +310,7 @@ def send_append_entries(server,level=0):
     if len(log[level]) > prev_index and prev_index >= 0:
         prev_term = log[level][prev_index].term 
     entries = log[level][prev_index+1:]
-    debug_print("Sending AppendEntries to {} with prev_index {}".format(server,prev_index))
+    debug_print("Sending AppendEntries to {} with prev_index {} at level {}".format(server,prev_index,level))
     new_message = None
     if level == 0:
         new_message = Message("AppendEntries",Entries(term = currentTerm, leaderId = this_id, prevLogIndex = prev_index, prevLogTerm = prev_term, entries=entries,leaderCommit = commitIndex[level]))
@@ -305,9 +320,10 @@ def send_append_entries(server,level=0):
     sock.sendto(message_string, server)
 
 def AppendEntriesResp(response):
-    global nextIndex, matchIndex, commitIndex, currentTerm, proposal_count
+    global nextIndex, matchIndex, currentTerm, proposal_count
     level = response.level
     server = response.server
+    debug_print("Received AppendEntriesResp from {} at level {}".format(server,level))
     if response.term > currentTerm:
         global current_state
         currentTerm = response.term
@@ -318,19 +334,27 @@ def AppendEntriesResp(response):
         send_append_entries(server,level)
     if response.success:
         nextIndex[level][server] = len(log[level])
+        debug_print("Set %s nextIndex level %d to %d" % (server, level, len(log[level])))
         matchIndex[level][server] = len(log[level])-1
 
+    commitLock.acquire()
+    debug_print("2 Lock acquired by {}".format(threading.get_ident()))
+    global commitIndex
     new_commit_index = commitIndex[level]
     for i in range(commitIndex[level]+1,len(log[level])):
         greater_index = [index for index in matchIndex[level].values() if index >= i]
         if len(greater_index) > len(members[level])/2:
-            debug_print("committing to {}".format(i))
+            debug_print("committing to {} at level {}".format(i,level))
             new_commit_index = i
             # Notify proposer
+            debug_print("Notifying proposer")
             notify(log[level][i].proposer, log[level][i])
+            debug_print("Done notifying proposer")
             if level == 0:
                 proposal_count += 1
     commitIndex[level] = new_commit_index
+    debug_print("2 Lock released by {}".format(threading.get_ident()))
+    commitLock.release()
 
 def most_frequent(List): 
     List = [x for x in List if x is not None]
@@ -363,6 +387,8 @@ def notify(server, entry):
     sock.sendto(message_string, server)
 
 def update_entries(level=0):
+    commitLock.acquire()
+    debug_print("3 Lock acquired by {}".format(threading.get_ident()))
     global commitIndex, possibleEntries, proposal_count
 
     # Fast-track commit check
@@ -392,16 +418,22 @@ def update_entries(level=0):
 
             # Update commitIndex and notify client
             commitIndex[level] = k
+            debug_print("committing to {} at level {}".format(k,level))
             if level == 0:
                 proposal_count += 1
             notify(log[level][k].proposer, log[level][k])
             k += 1
         else: # Wait for this entry to be committed 
             break
+    debug_print("4 Lock released by {}".format(threading.get_ident()))
+    commitLock.release()
 
     global poss_timer
-    poss_timer = threading.Timer(75/1000.0, poss_timeout) 
-    poss_timer.start()
+    if level == 0:
+        poss_timer[level] = threading.Timer(75/1000.0, poss_timeout, (level,)) 
+    else:
+        poss_timer[level] = threading.Timer(75/1000.0, poss_timeout, (level,)) 
+    poss_timer[level].start()
 
 def update_everyone(level=0):
     global commitIndex, possibleEntries, proposal_count
@@ -413,8 +445,13 @@ def update_everyone(level=0):
         send_append_entries(server,level)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
-    heartbeat_timer.start()
+    if level == 0:
+        heartbeat_timer[level] = threading.Timer(100/1000.0, 
+                heartbeat_timeout, (level,)) 
+    else:
+        heartbeat_timer[level] = threading.Timer(100/1000.0, 
+                heartbeat_timeout, (level,)) 
+    heartbeat_timer[level].start()
 
 
 def become_leader(level=0):
@@ -425,24 +462,38 @@ def become_leader(level=0):
 
     update_everyone(level)
 
-appended_members = {}
-appending = False
+appended_members = [{}]
+
 def global_update_everyone(entry, index):
-    global members, appended_members, appending
+    global members, appended_members, appendedLock
 
-    appending = True
-    while len(appended_members) <= len(members[0])/2:
-        for server in members[0]:
-            response = Message("AppendEntry", Entry(entry = entry, index = index))
-        time.sleep(50/1000)
+    while index >= len(appended_members):
+        appended_members.append({})
 
-    appending = False
-    appended_members = {}
+    #while True:
+    #    appendedLock.acquire()
+    #    if len(appended_members[index]) > len(members[1])/2:
+    #        break
+    #    debug_print("Updating globally for index {}, waiting on {}".format(
+    #        index,appended_members[index]))
+    #    debug_print(len(appended_members[index]))
+    #    appendedLock.release()
+    for server in members[0]:
+        new_message = Message("AppendEntry", Entry(entry = entry, index = index))
+        message_string = pickle.dumps(new_message)
+        sock.sendto(message_string, server)
+     #   time.sleep(50/1000)
+
+    debug_print("Done global update for {}".format(index))
 
 def AppendEntryResp(request):
-    global appending, appended_members
-    if appending:
-        appended_members[request.server] = True
+    global appendedLock
+    appendedLock.acquire()
+    global appended_members
+    debug_print(len(appended_members[request.index]))
+    appended_members[request.index][request.server] = True
+    debug_print(len(appended_members[request.index]))
+    appendedLock.release()
 
 #def hold_election():
 #    global currentTerm,matchIndex,current_state,commitIndex
@@ -534,28 +585,25 @@ Timer stop functions
 
 # For reproposing entries
 repropose_time = [True, True]
-def repropose_timeout():
+def repropose_timeout(level):
     global repropose_time
-    for level in range(0,1):
-        repropose_time[level] = True
-repropose_timer = None 
+    repropose_time[level] = True
+repropose_timer = [None, None]
 
 # Used by leader to determine if it is time to send out heartbeat
 update_poss = [False, False]
-def poss_timeout():
+def poss_timeout(level):
     global update_poss
-    for level in range(0,1):
-        update_poss[level] = True
-poss_timer = None 
+    update_poss[level] = True
+poss_timer = [None,None]
 
 # Used by leader to determine if it is time to send out heartbeat
 update = [False, False]
-def heartbeat_timeout():
+def heartbeat_timeout(level):
     global update
     debug_print("Heartbeat timeout")
-    for level in range(0,1):
-        update[level] = True
-heartbeat_timer = None 
+    update[level] = True
+heartbeat_timer = [None, None]
 
 # Used by all to determine if we want to propose a new entry 
 propose_time = False
@@ -596,15 +644,21 @@ def main(args):
     
     while running:
         for level in range(0,1):
-            if repropose_time[level] and args[1] == "propose":
-                try:
-                    repropose_time[level] = False
-                    for entry,index in repropose_log[level].values():
-                        propose_all(entry, index, level)
-                except: # if dictionary changes sizes in middle of run, don't panic
-                    pass
-                repropose_timer = threading.Timer(1000/1000.0, repropose_timeout) 
-                repropose_timer.start()
+            #if repropose_time[level] and args[1] == "propose":
+            #    #propose_time = True 
+            #    #try:
+            #    #    repropose_time[level] = False
+            #    #    for entry,index in repropose_log[level].values():
+            #    #        propose_all(entry, index, level)
+            #    #except: # if dictionary changes sizes in middle of run, don't panic
+            #    #    pass
+            #    if level == 0:
+            #        repropose_timer[level] = threading.Timer(250/1000.0, 
+            #                repropose_timeout, (level,)) 
+            #    else:
+            #        repropose_timer[level] = threading.Timer(250/1000.0, 
+            #                repropose_timeout, (level,)) 
+            #    repropose_timer[level].start()
             if current_state[level] == "leader" and update_poss[level]:
                 update_poss[level] = False
                 update_entries(level)

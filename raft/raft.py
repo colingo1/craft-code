@@ -63,6 +63,7 @@ class VoteRequest():
 
 DEBUG = True
 # Stable storage of all servers as defined in the Raft paper.
+commitLock = threading.Lock()
 currentTerm = 0;
 log = [LogEntry(data = "NULL", term = 0, proposer="")];
 votedFor = "";
@@ -147,7 +148,7 @@ def ReceivePropose(request):
     log.append(request.entry)
 
 def AppendEntries(request):
-    global log, commitIndex, currentTerm, leaderId
+    global log, currentTerm, leaderId
     global election_timer, first, run, propose_time
 
     debug_print("Received AppendEntries from {}".format(request.leaderId))
@@ -170,6 +171,10 @@ def AppendEntries(request):
         #randTime = random.randint(250,500)
         #election_timer = threading.Timer(randTime/100.0, election_timeout) 
         #election_timer.start()
+
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     if request.term > currentTerm:
         global current_state
         current_state = "follower"
@@ -185,7 +190,8 @@ def AppendEntries(request):
     commitIndex = min(request.leaderCommit, len(log) -1)
     if commitIndex > oldCommitIndex:
         debug_print("committing to {}".format(commitIndex))
-
+    print("Lock released by", threading.get_ident())
+    commitLock.release()
     ack(True, request.leaderId)
 
 
@@ -229,7 +235,7 @@ def send_append_entries(server):
     sock.sendto(message_string, server)
 
 def AppendEntriesResp(response):
-    global nextIndex, matchIndex, commitIndex, currentTerm, log
+    global nextIndex, matchIndex, currentTerm, log
     server = response.server
     if response.term > currentTerm:
         global current_state
@@ -242,6 +248,9 @@ def AppendEntriesResp(response):
         nextIndex[server] = len(log)
         matchIndex[server] = len(log)-1
 
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
@@ -251,6 +260,8 @@ def AppendEntriesResp(response):
             # Notify proposer
             notify(log[i].proposer, log[i])
     commitIndex = new_commit_index
+    print("Lock released by", threading.get_ident())
+    commitLock.release()
 
 def notify(server, entry):
     global sock
@@ -267,7 +278,7 @@ def update_everyone():
         send_append_entries(server)
 
     global heartbeat_timer
-    heartbeat_timer = threading.Timer(100/1000.0, heartbeat_timeout) 
+    heartbeat_timer = threading.Timer(300/1000.0, heartbeat_timeout) 
     heartbeat_timer.start()
 
 
@@ -406,11 +417,14 @@ def main(args):
     
     while running:
         if repropose_time and args[1] == "propose":
-            repropose_time = False
-            for entry,index in repropose_log.values():
-                if index >= len(log):
-                    propose(entry, leaderId)
-            repropose_timer = threading.Timer(150/1000.0, repropose_timeout) 
+            try:
+                repropose_time = False
+                for entry,index in repropose_log.values():
+                    if index >= len(log):
+                        propose(entry, leaderId)
+            except: # if dictionary changes sizes in middle of run, don't panic
+                pass
+            repropose_timer = threading.Timer(250/1000.0, repropose_timeout) 
             repropose_timer.start()
         if current_state == "leader" and update:
             update = False

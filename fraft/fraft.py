@@ -188,7 +188,7 @@ def ReceivePropose(request):
         propose(log[request.index], request.index, leaderId)
 
 def AppendEntries(request):
-    global log, commitIndex, currentTerm, leaderId
+    global log, currentTerm, leaderId
     global election_timer, first, run, propose_time, joining
 
     if first:
@@ -213,6 +213,9 @@ def AppendEntries(request):
         #election_timer = threading.Timer(randTime/100.0, election_timeout) 
         #election_timer.start()
 
+    commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     if request.term > currentTerm:
         global current_state
         current_state = "follower"
@@ -230,11 +233,11 @@ def AppendEntries(request):
         print("appended entry: {} to log in index {}".format(entry.data, index))
         i += 1
 
-    commitLock.acquire()
     oldCommitIndex = commitIndex
     commitIndex = min(request.leaderCommit, len(log) -1)
     if commitIndex > oldCommitIndex:
         debug_print("committing to {}".format(commitIndex))
+    print("Lock released by", threading.get_ident())
     commitLock.release()
     ack(True, request.leaderId)
 
@@ -291,7 +294,7 @@ def send_append_entries(server):
 
 
 def AppendEntriesResp(response):
-    global nextIndex, matchIndex, commitIndex, currentTerm, log, memberTimeout
+    global nextIndex, matchIndex, currentTerm, log, memberTimeout
     server = response.server
     memberTimeout[server] = 0
     
@@ -319,6 +322,8 @@ def AppendEntriesResp(response):
         matchIndex[server] = len(log)-1
 
     commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex
     new_commit_index = commitIndex
     for i in range(commitIndex+1,len(log)):
         greater_index = [index for index in matchIndex.values() if index >= i]
@@ -330,6 +335,7 @@ def AppendEntriesResp(response):
             # Notify proposer
             notify(log[i].proposer, log[i])
     commitIndex = new_commit_index
+    print("Lock released by", threading.get_ident())
     commitLock.release()
 
 def most_frequent(List): 
@@ -363,10 +369,11 @@ def notify(server, entry):
     sock.sendto(message_string, server)
 
 def update_entries():
-    global commitIndex, possibleEntries
-
     # Fast-track commit check
     commitLock.acquire()
+    print("Lock acquired by", threading.get_ident())
+    global commitIndex, possibleEntries
+
     k = commitIndex+1
     while(len(possibleEntries) > k and
           sum(x is not None for x in possibleEntries[k]) > len(members)/2):
@@ -399,6 +406,7 @@ def update_entries():
 
         else: # Wait for this entry to be committed 
             break
+    print("Lock released by", threading.get_ident())
     commitLock.release()
 
     global poss_timer
