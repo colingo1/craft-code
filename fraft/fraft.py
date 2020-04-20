@@ -58,11 +58,12 @@ class Ack():
         self.server = server
 
 class VoteRequest():
-    def __init__(self, term, candidateId, lastLogIndex, lastLogTerm):
+    def __init__(self, term, candidateId, lastLogIndex, lastLogTerm, server):
         self.term = term;
         self.candidateId = candidateId;
         self.lastLogIndex = lastLogIndex;
         self.lastLogTerm = lastLogTerm;
+        self.server = server;
 
 DEBUG = True
 num_normal_path = 0
@@ -95,6 +96,7 @@ for line in lines:
     members.append((line[0:-1],8100)) 
 instance_file.close()
 
+current_votes = [False] * len(members)
 # Possible Entries structure
 # List of lists, length of log
 # Inner lists length of number of members
@@ -108,7 +110,7 @@ host_file.close()
 
 # Create socket for listening and sending
 sock = socket.socket(socket.AF_INET, # Internet
-                     socket.SOCK_DGRAM) # UDP	
+                     socket.SOCK_DGRAM) # UDP   
 sock.bind(this_id)
 
 os.system("touch /home/ubuntu/"+this_id[0]+".txt")
@@ -194,7 +196,10 @@ def AppendEntries(request):
     if first:
         first = False
         propose_time = True
-        run = threading.Timer(60, stop_running)
+        if current_state == "leader":
+            run = threading.Timer(10, stop_running)
+        else:
+            run = threading.Timer(60, stop_running)
         run.start()
     elif joining:
         f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
@@ -207,11 +212,11 @@ def AppendEntries(request):
     #if not term_equal(request.prevLogIndex, request.prevLogTerm):
     #    return ack(False)
     leaderId = request.leaderId
-    #if leaderId != this_id:
-        #election_timer.cancel()
-        #randTime = random.randint(250,500)
-        #election_timer = threading.Timer(randTime/100.0, election_timeout) 
-        #election_timer.start()
+    if leaderId != this_id:
+        election_timer.cancel()
+        randTime = random.randint(250,500)
+        election_timer = threading.Timer(randTime/100.0, election_timeout) 
+        election_timer.start()
 
     commitLock.acquire()
     print("Lock acquired by", threading.get_ident())
@@ -242,23 +247,45 @@ def AppendEntries(request):
     ack(True, request.leaderId)
 
 
-#def RequestVote(request):
-#    global currentTerm, commitIndex
-#    if request.term < currentTerm:
-#        return ack(False)
-#    if request.term > currentTerm:
-#        global current_state
-#        current_state = "follower"
-#        currentTerm = request.term
-#
-#    # If haven't voted yet, and at least as up-to-date as self, vote for
-#    if((votedFor == "" or votedFor == request.candidateId) and 
-#         (request.lastLogIndex >= commitIndex)):
-#            debug_print("Voted for {}".format(request.candidateId))
-#            return ack(True)
-#
-#    # Do not vote for
-#    return ack(False)
+def RequestVote(request):
+    global currentTerm, commitIndex, sock
+    will_vote = False
+    if request.term < currentTerm:
+        will_vote = False
+    if request.term > currentTerm:
+        global current_state
+        current_state = "follower"
+        currentTerm = request.term
+
+    # If haven't voted yet, and at least as up-to-date as self, vote for
+    if((votedFor == "" or votedFor == request.candidateId) and 
+         (request.lastLogIndex >= commitIndex)):
+            debug_print("Voted for {}".format(request.candidateId))
+            votedFor = request.server
+            will_vote = True
+
+    # Do not vote for
+    vote_response = Message("Vote", Ack(term = currentTerm, 
+                    success = will_vote, server = this_id))
+    message_string = pickle.dumps(vote_response)
+    sock.sendto(message_string, request.server)
+
+def ReceiveVote(request):
+    global current_state, current_votes, currentTerm
+    if request.success:
+        current_votes[members.index(request.server)] = True
+        debug_print("Received vote from server {}".format(request.server))
+        if request.term > currentTerm:
+            current_state = "follower"
+            currentTerm = request.term
+            return
+        vote_count = sum(current_votes)
+        if vote_count >= len(members)/2:
+                current_state = "leader"
+                debug_print("Won Election")
+                become_leader()
+
+
 
 def Notified(request):
     global start_times, propose_time, repropose_log
@@ -447,45 +474,26 @@ def update_everyone():
 
 
 def become_leader():
-    global nextIndex, matchIndex, election_timer, memberTimeout
-    #election_timer.cancel()
-
+    global nextIndex, matchIndex, election_timer, memberTimeout, current_votes
+    current_votes = [False] * len(members)
+    election_timer.cancel()
     nextIndex = {member:len(log) for member in members}
     matchIndex = {member:0 for member in members}
     memberTimeout = {member:0 for member in members}
 
     update_everyone()
 
-#def hold_election():
-#    global currentTerm,matchIndex,current_state,commitIndex
-#    currentTerm += 1
-#    votedFor = this_id
-#    vote_count = 1
-#    for server in members:
-#        if server != this_id:
-#            with grpc.insecure_channel(server) as channel:
-#                stub = fraft_pb2_grpc.fRaftStub(channel)
-#                try:
-#                    response = stub.RequestVote(fraft_pb2.VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term), timeout=5)
-#                    if response.success:
-#                        vote_count +=1
-#                        debug_print("received vote from {}".format(server))
-#                    if response.term > currentTerm:
-#                        current_state = "follower"
-#                        currentTerm = response.term
-#                except grpc.RpcError as e:
-#                    debug_print(e)
-#                    debug_print("couldn't connect to {}".format(server))
-#    if vote_count >= len(members)/2:
-#        current_state = "leader"
-#        become_leader()
-#    else:
-#        debug_print("lost election")
-#        current_state = "follower"
-#        global election_timer
-#        randTime = random.randint(250,500)
-#        election_timer = threading.Timer(randTime/100.0, election_timeout) 
-#        election_timer.start()
+def hold_election():
+    global currentTerm,matchIndex,current_state,commitIndex
+    currentTerm += 1
+    votedFor = this_id
+    vote_count = 1
+    for server in members:
+        if server != this_id:
+            vote_request = Message(VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term, server = this_id))
+            message_string = pickle.dumps(vote_request)
+            sock.sendto(message_string,server)
+    
 
 def propose_all(entry, index):
     global members, log, commitIndex, this_id
@@ -503,10 +511,12 @@ def receive_message(data):
         AppendEntriesResp(message.obj)
     elif message.func == "JoinRequest":
         JoinRequest(message.obj)
-    #elif message.func == "RequestVote":
-    #    RequestVote(message.obj)
+    elif message.func == "RequestVote":
+        RequestVote(message.obj)
     elif message.func == "Notified":
         Notified(message.obj)
+    elif message.func == "Vote":
+        ReceiveVote(message.obj)
 
 def start_grpc_server():
     global sock
@@ -532,12 +542,12 @@ Timer stop functions
 """
 
 # Used in followers to decide if leader has failed 
-#def election_timeout():
-#    global current_state
-#    debug_print("Election timeout")
-#    current_state = "candidate"
-#election_timer = threading.Timer(1000/100.0, election_timeout) 
-#election_timer.start()
+def election_timeout():
+    global current_state
+    debug_print("Election timeout")
+    current_state = "candidate"
+election_timer = threading.Timer(1000/100.0, election_timeout) 
+election_timer.start()
 
 # For reproposing entries
 repropose_time = True
