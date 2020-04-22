@@ -579,6 +579,10 @@ repropose_log = {}
 
 # Run experiment for set amount of time
 running = True
+crashed = [8,9]
+if members.index(this_id) in crashed:
+    running = False
+
 def stop_running():
     global running
     debug_print("Running timeout")
