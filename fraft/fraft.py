@@ -196,10 +196,11 @@ def AppendEntries(request):
     if first:
         first = False
         propose_time = True
-        if current_state == "leader":
-            run = threading.Timer(10, stop_running)
-        else:
-            run = threading.Timer(60, stop_running)
+        run = threading.Timer(60, stop_running)
+        # if current_state == "leader":
+        #     run = threading.Timer(10, stop_running)
+        # else:
+        #     run = threading.Timer(60, stop_running)
         run.start()
     elif joining:
         f=open("/home/ubuntu/"+this_id[0]+".txt", "a+")
