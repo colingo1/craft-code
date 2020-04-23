@@ -151,7 +151,7 @@ def ReceivePropose(request):
 
 def AppendEntries(request):
     global log, currentTerm, leaderId
-    global election_timer, first, run, propose_time
+    global election_timer, first, run, propose_time, current_state
 
     debug_print("Received AppendEntries from {}".format(request.leaderId))
     if request.term < currentTerm:
@@ -182,7 +182,6 @@ def AppendEntries(request):
     print("Lock acquired by", threading.get_ident())
     global commitIndex
     if request.term > currentTerm:
-        global current_state
         current_state = "follower"
         currentTerm = request.term
     
@@ -218,7 +217,7 @@ def AppendEntries(request):
 #    return ack(False)
 
 def RequestVote(request):
-    global currentTerm, commitIndex, sock
+    global currentTerm, commitIndex, sock, votedFor
     will_vote = False
     if request.term < currentTerm:
         will_vote = False
@@ -259,7 +258,7 @@ def ReceiveVote(request):
             current_state = "follower"
             currentTerm = request.term
             return
-        vote_count = sum(current_votes)
+        vote_count = sum(current_votes) + 1
         if vote_count >= len(members)/2:
                 current_state = "leader"
                 debug_print("Won Election")
@@ -367,13 +366,12 @@ def become_leader():
 #        election_timer = threading.Timer(randTime/100.0, election_timeout) 
 #        election_timer.start()
 def hold_election():
-    global currentTerm,matchIndex,current_state,commitIndex
+    global currentTerm,matchIndex,current_state,commitIndex, votedFor
     currentTerm += 1
     votedFor = this_id
-    vote_count = 1
     for server in members:
         if server != this_id:
-            vote_request = Message(VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term, server = this_id))
+            vote_request = Message("RequestVote", VoteRequest(term = currentTerm, candidateId = this_id, lastLogIndex = commitIndex, lastLogTerm = log[commitIndex].term, server = this_id))
             message_string = pickle.dumps(vote_request)
             sock.sendto(message_string,server)
 
