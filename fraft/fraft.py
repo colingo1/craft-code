@@ -580,7 +580,7 @@ repropose_log = {}
 
 # Run experiment for set amount of time
 running = True
-crashed = [8,9]
+crashed = []
 if members.index(this_id) in crashed:
     running = False
 
